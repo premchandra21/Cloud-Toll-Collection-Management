@@ -34,7 +34,7 @@ Last updated: 2026-10-06
 ## Status
 - [x] Slice 0: Scaffold client, server, Prisma 7, local Postgres, `/api/v1/health` returning db connected
 - [x] Slice 0b: Frontend shell (Home, Login UI placeholder, NotFound, API status chip) — files provided, confirm it runs
-- [ ] Slice 1: Full Prisma schema (7 tables) + raw-SQL constraints + seed (1 admin, 1 operator, 2 users, 2 plazas, rates, vehicles, balances)
+- [x] Slice 1: Full Prisma schema (7 tables) + raw-SQL constraints + seed (1 admin, 1 operator, 2 users, 2 plazas, rates, vehicles, balances)
 - [ ] Slice 2: Deploy skeleton to the cloud (managed Postgres, API host, client host, auto-deploy, `migrate deploy` + seed)
 - [ ] Slice 3: Auth module (register, login, me, JWT, role middleware) + login/register pages + protected routes
 - [ ] Slice 4: Vehicles + wallet (CRUD, ownership checks, simulated top-up, ledger) + driver pages
@@ -46,10 +46,9 @@ Last updated: 2026-10-06
 - [ ] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
 
 ## Current slice
-Slice 1
+Slice 2
 
 ## Next action
-1. Start Slice 1 in a new chat: paste this file + `server/prisma/schema.prisma` + spec Sections 5 and 5.2.
 
 ## Known gotchas
 - Free-tier hosts sleep when idle; warm the API before any demo.
@@ -58,9 +57,9 @@ Slice 1
 - Never commit `.env` or `server/src/generated`.
 
 ## Demo credentials (fill in after seeding)
-- Admin: 
-- Operator: 
-- Driver: 
+- Admin: admin@toll.test  /  Admin@123
+- Operator: operator@toll.test  /  Operator@123
+- Driver: asha@toll.test  /  Driver@123, ravi@toll.test  /  Driver@123
 
 ## Notes / issues log
 -
