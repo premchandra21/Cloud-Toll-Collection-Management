@@ -204,3 +204,63 @@ a {
 .chip--offline .chip__dot {
   background: var(--danger);
 }
+
+/* Auth + logged-in shell */
+.muted {
+  color: var(--muted);
+}
+
+.nav__user {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn--ghost:hover {
+  background: var(--bg);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.alert {
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.alert--error {
+  background: #fef2f2;
+  color: var(--danger);
+  border: 1px solid #fecaca;
+}
+
+.auth-card__footer {
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.auth-card__footer a {
+  color: var(--primary);
+  font-weight: 600;
+}

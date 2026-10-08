@@ -30,6 +30,10 @@ Last updated: 2026-10-06
 - Registration always creates role USER; operator/admin accounts come from the seed.
 - Full schema is created once (one planned migration), then work proceeds in vertical slices (backend + frontend per module).
 - Cloud skeleton is deployed right after the schema, before feature modules.
+- Registration creates a USER plus an empty wallet (balance 0.00) in one nested create.
+- requireAuth verifies the JWT, then re-checks the user in the DB (exists + isActive); requireRole(...) runs after it.
+- Client stores the JWT in localStorage; a 401 clears it and redirects to /login. Role homes: USER /app, OPERATOR /operator, ADMIN /admin (placeholder page until Slice 4+).
+- Slice 2 (deploy) skipped; the teammate deploys after the app is built.
 
 ## Status
 - [x] Slice 0: Scaffold client, server, Prisma 7, local Postgres, `/api/v1/health` returning db connected
@@ -37,7 +41,7 @@ Last updated: 2026-10-06
 - [x] Slice 1: Full Prisma schema (7 tables) + raw-SQL constraints + seed (1 admin, 1 operator, 2 users, 2 plazas, rates, vehicles, balances)
 - [ ] Slice 2: Deploy skeleton to the cloud (managed Postgres, API host, client host, auto-deploy, `migrate deploy` + seed)
 Skipping deployment for now will do it after developing the app.
-- [ ] Slice 3: Auth module (register, login, me, JWT, role middleware) + login/register pages + protected routes
+- [x] Slice 3: Auth module (register, login, me, JWT, role middleware) + login/register pages + protected routes
 - [ ] Slice 4: Vehicles + wallet (CRUD, ownership checks, simulated top-up, ledger) + driver pages
 - [ ] Slice 5: Plazas + rates (admin CRUD, active-rate rule) + admin pages
 - [ ] Slice 6: Toll processing service + tests (idempotency, conditional debit, failures, low-balance) + operator toll simulator page
@@ -47,7 +51,7 @@ Skipping deployment for now will do it after developing the app.
 - [ ] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
 
 ## Current slice
-Slice 3
+Slice 4
 
 ## Next action
 

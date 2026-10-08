@@ -1,7 +1,11 @@
 import { Link, Outlet } from 'react-router-dom'
 import ApiStatusChip from '../components/ui/ApiStatusChip'
+import { useAuth } from '../features/auth/useAuth'
+import { roleHome } from '../utils/roleHome'
 
 export default function PublicLayout() {
+  const { user } = useAuth()
+
   return (
     <div className="shell">
       <header className="topbar">
@@ -10,9 +14,18 @@ export default function PublicLayout() {
         </Link>
         <nav className="nav">
           <Link to="/">Home</Link>
-          <Link to="/login" className="btn btn--small">
-            Login
-          </Link>
+          {user ? (
+            <Link to={roleHome(user.role)} className="btn btn--small">
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link to="/register">Register</Link>
+              <Link to="/login" className="btn btn--small">
+                Login
+              </Link>
+            </>
+          )}
         </nav>
       </header>
 

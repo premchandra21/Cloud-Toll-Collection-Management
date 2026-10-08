@@ -1,4 +1,9 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { Link, Navigate, useLocation } from 'react-router-dom'
+import { useAuth } from '../features/auth/useAuth'
+import { getErrorMessage } from '../utils/getErrorMessage'
+import { roleHome } from '../utils/roleHome'
 
 interface LoginForm {
   email: string
@@ -6,22 +11,35 @@ interface LoginForm {
 }
 
 export default function LoginPage() {
+  const { user, login } = useAuth()
+  const location = useLocation()
+  const [serverError, setServerError] = useState<string | null>(null)
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<LoginForm>()
 
-  // Placeholder: real login is wired up in Slice 3 (Auth module)
-  const onSubmit = (values: LoginForm) => {
-    console.log('Login submitted (not connected yet):', values.email)
-    alert('Login will be connected in the Auth slice.')
+  const from = (location.state as { from?: string } | null)?.from
+
+  // Already logged in (or just logged in): go to the page they wanted, else their dashboard
+  if (user) return <Navigate to={from ?? roleHome(user.role)} replace />
+
+  const onSubmit = async (values: LoginForm) => {
+    setServerError(null)
+    try {
+      await login(values)
+    } catch (err) {
+      setServerError(getErrorMessage(err))
+    }
   }
 
   return (
     <div className="auth-card card">
       <h2>Login</h2>
       <form onSubmit={handleSubmit(onSubmit)} className="form">
+        {serverError && <div className="alert alert--error">{serverError}</div>}
+
         <label>
           Email
           <input
@@ -37,18 +55,19 @@ export default function LoginPage() {
           <input
             type="password"
             placeholder="••••••••"
-            {...register('password', {
-              required: 'Password is required',
-              minLength: { value: 6, message: 'At least 6 characters' },
-            })}
+            {...register('password', { required: 'Password is required' })}
           />
           {errors.password && <span className="error">{errors.password.message}</span>}
         </label>
 
-        <button type="submit" className="btn">
-          Sign in
+        <button type="submit" className="btn" disabled={isSubmitting}>
+          {isSubmitting ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
+
+      <p className="auth-card__footer">
+        New here? <Link to="/register">Create an account</Link>
+      </p>
     </div>
   )
 }
