@@ -4,8 +4,14 @@ import helmet from "helmet";
 import { prisma } from "./config/database.js";
 
 export const app = express();
+
+const allowedOrigins = (process.env.CLIENT_ORIGIN ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_ORIGIN }));
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 app.get("/api/v1/health", async (_req, res) => {

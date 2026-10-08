@@ -36,6 +36,7 @@ Last updated: 2026-10-06
 - [x] Slice 0b: Frontend shell (Home, Login UI placeholder, NotFound, API status chip) — files provided, confirm it runs
 - [x] Slice 1: Full Prisma schema (7 tables) + raw-SQL constraints + seed (1 admin, 1 operator, 2 users, 2 plazas, rates, vehicles, balances)
 - [ ] Slice 2: Deploy skeleton to the cloud (managed Postgres, API host, client host, auto-deploy, `migrate deploy` + seed)
+Skipping deployment for now will do it after developing the app.
 - [ ] Slice 3: Auth module (register, login, me, JWT, role middleware) + login/register pages + protected routes
 - [ ] Slice 4: Vehicles + wallet (CRUD, ownership checks, simulated top-up, ledger) + driver pages
 - [ ] Slice 5: Plazas + rates (admin CRUD, active-rate rule) + admin pages
@@ -46,7 +47,7 @@ Last updated: 2026-10-06
 - [ ] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
 
 ## Current slice
-Slice 2
+Slice 3
 
 ## Next action
 

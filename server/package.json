@@ -5,8 +5,11 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "prisma generate && tsc",
-    "start": "node dist/server.js"
+    "build": "prisma generate --config prisma7.config.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "migrate:deploy": "prisma migrate deploy --config prisma7.config.ts",
+    "seed": "prisma db seed --config prisma7.config.ts"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +25,7 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.1",
+    "tsx": "^4.23.15",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -31,7 +35,6 @@
     "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",
     "prisma": "^7.10.0",
-    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
 }
