@@ -264,3 +264,168 @@ a {
   color: var(--primary);
   font-weight: 600;
 }
+
+
+/* ---- Slice 4: vehicles + wallet ---- */
+.nav__link {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+
+.nav__link:hover {
+  color: var(--text);
+}
+
+.nav__link--active {
+  color: var(--primary);
+  background: var(--bg);
+}
+
+.page-title {
+  margin: 0 0 1rem;
+}
+
+.section-gap {
+  margin-top: 1rem;
+}
+
+.link {
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.stat {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.balance {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.form--inline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.form--inline .alert,
+.form--inline .form__actions,
+.form--inline .chips {
+  grid-column: 1 / -1;
+}
+
+.form select {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+  background: var(--surface);
+}
+
+.form__actions,
+.chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.alert--warn {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  margin-bottom: 0.75rem;
+}
+
+.alert--ok {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.table th,
+.table td {
+  padding: 0.6rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.table th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table__actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.pos {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.neg {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.status {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.status--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status--off {
+  background: #f3f4f6;
+  color: var(--muted);
+}
+
+.badge--plain {
+  margin-left: 0;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}

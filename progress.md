@@ -34,6 +34,10 @@ Last updated: 2026-10-06
 - requireAuth verifies the JWT, then re-checks the user in the DB (exists + isActive); requireRole(...) runs after it.
 - Client stores the JWT in localStorage; a 401 clears it and redirects to /login. Role homes: USER /app, OPERATOR /operator, ADMIN /admin (placeholder page until Slice 4+).
 - Slice 2 (deploy) skipped; the teammate deploys after the app is built.
+- Wallet ledger amounts are signed: credits positive, toll debits stored negative. Reconciliation is then a plain SUM(amount) per wallet, so Slice 6 must write TOLL_DEBIT rows as negative amounts.
+- Vehicle number and RFID are normalised to uppercase (vehicle number also strips spaces and hyphens). Slice 6 must look vehicles up by RFID using rfidTagSchema from vehicle.schema.ts, so lookups match what is stored.
+- A vehicle owned by someone else returns 404 (not 403), so its existence isn't leaked. ADMIN can access all vehicles but must pass userId when creating one.
+- Top-up limits are ₹1 to ₹50,000 per request. The ledger shows referenceType SIMULATED_PAYMENT with a fake SIM- reference.
 
 ## Status
 - [x] Slice 0: Scaffold client, server, Prisma 7, local Postgres, `/api/v1/health` returning db connected
@@ -42,7 +46,7 @@ Last updated: 2026-10-06
 - [ ] Slice 2: Deploy skeleton to the cloud (managed Postgres, API host, client host, auto-deploy, `migrate deploy` + seed)
 Skipping deployment for now will do it after developing the app.
 - [x] Slice 3: Auth module (register, login, me, JWT, role middleware) + login/register pages + protected routes
-- [ ] Slice 4: Vehicles + wallet (CRUD, ownership checks, simulated top-up, ledger) + driver pages
+- [x] Slice 4: Vehicles + wallet (CRUD, ownership checks, simulated top-up, ledger) + driver pages
 - [ ] Slice 5: Plazas + rates (admin CRUD, active-rate rule) + admin pages
 - [ ] Slice 6: Toll processing service + tests (idempotency, conditional debit, failures, low-balance) + operator toll simulator page
 - [ ] Slice 7: Transactions list/detail/CSV export + notifications + admin users
@@ -51,9 +55,10 @@ Skipping deployment for now will do it after developing the app.
 - [ ] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
 
 ## Current slice
-Slice 4
+Slice 5
 
 ## Next action
+Plazas + rates (admin CRUD, active-rate rule) + admin pages.
 
 ## Known gotchas
 - Free-tier hosts sleep when idle; warm the API before any demo.

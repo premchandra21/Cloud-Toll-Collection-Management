@@ -7,6 +7,9 @@ import LoginPage from '../pages/LoginPage'
 import NotFoundPage from '../pages/NotFoundPage'
 import RegisterPage from '../pages/RegisterPage'
 import RoleHomePage from '../pages/RoleHomePage'
+import UserDashboardPage from '../pages/user/UserDashboardPage'
+import VehiclesPage from '../pages/user/VehiclesPage'
+import WalletPage from '../pages/user/WalletPage'
 
 export const router = createBrowserRouter([
   {
@@ -27,7 +30,11 @@ export const router = createBrowserRouter([
         children: [
           {
             element: <ProtectedRoute allowedRoles={['USER']} />,
-            children: [{ path: '/app', element: <RoleHomePage /> }],
+            children: [
+              { path: '/app', element: <UserDashboardPage /> },
+              { path: '/app/vehicles', element: <VehiclesPage /> },
+              { path: '/app/wallet', element: <WalletPage /> },
+            ],
           },
           {
             element: <ProtectedRoute allowedRoles={['OPERATOR', 'ADMIN']} />,

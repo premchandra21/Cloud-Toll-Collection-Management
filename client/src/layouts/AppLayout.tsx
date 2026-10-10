@@ -1,9 +1,15 @@
-import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import ApiStatusChip from '../components/ui/ApiStatusChip'
 import { useAuth } from '../features/auth/useAuth'
 import { roleHome } from '../utils/roleHome'
 
-// Shell for every logged-in page. Later slices add role-specific nav links here.
+const USER_LINKS = [
+  { to: '/app', label: 'Dashboard', end: true },
+  { to: '/app/vehicles', label: 'Vehicles', end: false },
+  { to: '/app/wallet', label: 'Wallet', end: false },
+]
+
+// Shell for every logged-in page. Later slices add OPERATOR / ADMIN links here.
 export default function AppLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -20,6 +26,17 @@ export default function AppLayout() {
           🛣️ TollCloud
         </Link>
         <nav className="nav">
+          {user?.role === 'USER' &&
+            USER_LINKS.map((l) => (
+              <NavLink
+                key={l.to}
+                to={l.to}
+                end={l.end}
+                className={({ isActive }) => `nav__link${isActive ? ' nav__link--active' : ''}`}
+              >
+                {l.label}
+              </NavLink>
+            ))}
           <span className="nav__user">
             {user?.name} <span className="badge">{user?.role}</span>
           </span>
