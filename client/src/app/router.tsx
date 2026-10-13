@@ -12,6 +12,10 @@ import VehiclesPage from '../pages/user/VehiclesPage'
 import WalletPage from '../pages/user/WalletPage'
 import PlazasPage from '../pages/admin/PlazasPage'
 import TollSimulatorPage from '../pages/operator/TollSimulatorPage'
+import TransactionsPage from '../pages/TransactionsPage'
+import TransactionDetailPage from '../pages/TransactionDetailPage'
+import NotificationsPage from '../pages/user/NotificationsPage'
+import UsersPage from '../pages/admin/UsersPage'
 
 export const router = createBrowserRouter([
   {
@@ -36,17 +40,27 @@ export const router = createBrowserRouter([
               { path: '/app', element: <UserDashboardPage /> },
               { path: '/app/vehicles', element: <VehiclesPage /> },
               { path: '/app/wallet', element: <WalletPage /> },
+              { path: '/app/transactions', element: <TransactionsPage /> },
+              { path: '/app/transactions/:id', element: <TransactionDetailPage /> },
+              { path: '/app/notifications', element: <NotificationsPage /> },
             ],
           },
           {
             element: <ProtectedRoute allowedRoles={['OPERATOR', 'ADMIN']} />,
-            children: [{ path: '/operator', element: <TollSimulatorPage /> }],
+            children: [
+              { path: '/operator', element: <TollSimulatorPage /> },
+              { path: '/operator/transactions', element: <TransactionsPage /> },
+              { path: '/operator/transactions/:id', element: <TransactionDetailPage /> },
+            ],
           },
           {
             element: <ProtectedRoute allowedRoles={['ADMIN']} />,
             children: [
               { path: '/admin', element: <RoleHomePage /> },
               { path: '/admin/plazas', element: <PlazasPage /> },
+              { path: '/admin/transactions', element: <TransactionsPage /> },
+              { path: '/admin/transactions/:id', element: <TransactionDetailPage /> },
+              { path: '/admin/users', element: <UsersPage /> },
             ],
           },
         ],

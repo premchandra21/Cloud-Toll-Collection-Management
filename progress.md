@@ -48,6 +48,12 @@ Rejected events (VEHICLE_NOT_FOUND, VEHICLE_INACTIVE, PLAZA_INACTIVE, TOLL_RATE_
 - Notifications (TOLL_SUCCESS, TOLL_FAILED, LOW_BALANCE) are already created after commit. Slice 7 only needs list and mark-read endpoints plus the UI.
 - toll.repository.ts exports the shared txSelect shape, which Slice 7's list and detail endpoints should reuse.
 - Tests use Node's built-in runner (npm test), and the 50-parallel and 20-duplicate concurrency cases already pass.
+- GET /toll-transactions is allowed for every role. A USER is scoped to their own vehicles in the repository query, and another user’s transaction id returns 404.
+- Date filters take full ISO timestamps; from is inclusive and to is exclusive. The client builds them from local midnight, so “today” follows the user’s timezone.
+- The CSV export caps at 10,000 rows, prefixes cells starting with = + - @ with an apostrophe (formula-injection guard), and the client downloads it via axios because a plain link can’t send the JWT.
+- Notifications are USER-only. The list response includes unreadCount, which drives the bell badge (polled every 20 seconds). PATCH /notifications/read-all was added beyond the spec.
+- PATCH /users/:id only toggles isActive, and an admin cannot deactivate themselves (409).
+- Transactions are browsed under /app, /operator or /admin /transactions depending on role, using one shared page.
 
 ## Status
 - [x] Slice 0: Scaffold client, server, Prisma 7, local Postgres, `/api/v1/health` returning db connected
@@ -59,16 +65,15 @@ Skipping deployment for now will do it after developing the app.
 - [x] Slice 4: Vehicles + wallet (CRUD, ownership checks, simulated top-up, ledger) + driver pages
 - [x] Slice 5: Plazas + rates (admin CRUD, active-rate rule) + admin pages
 - [x] Slice 6: Toll processing service + tests (idempotency, conditional debit, failures, low-balance) + operator toll simulator page
-- [ ] Slice 7: Transactions list/detail/CSV export + notifications + admin users
+- [x] Slice 7: Transactions list/detail/CSV export + notifications + admin users
 - [ ] Slice 8: Dashboard aggregations (raw SQL) + dashboard pages
 - [ ] Slice 9: Evidence scripts (`concurrency-test.ts`, `simulate-traffic.ts`, reconciliation query)
 - [ ] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
 
 ## Current slice
-Slice 7
+Slice 8
 
 ## Next action
-Transactions list/detail/CSV export + notifications + admin users.
 
 ## Known gotchas
 - Free-tier hosts sleep when idle; warm the API before any demo.

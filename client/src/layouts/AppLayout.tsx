@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import ApiStatusChip from '../components/ui/ApiStatusChip'
+import NotificationBell from '../components/ui/NotificationBell'
 import { useAuth } from '../features/auth/useAuth'
 import { roleHome } from '../utils/roleHome'
 
@@ -7,13 +8,19 @@ const USER_LINKS = [
   { to: '/app', label: 'Dashboard', end: true },
   { to: '/app/vehicles', label: 'Vehicles', end: false },
   { to: '/app/wallet', label: 'Wallet', end: false },
+  { to: '/app/transactions', label: 'Toll history', end: false },
 ]
 
-const OPERATOR_LINKS = [{ to: '/operator', label: 'Toll simulator', end: true }]
+const OPERATOR_LINKS = [
+  { to: '/operator', label: 'Toll simulator', end: true },
+  { to: '/operator/transactions', label: 'Transactions', end: false },
+]
 
 const ADMIN_LINKS = [
   { to: '/admin', label: 'Home', end: true },
   { to: '/admin/plazas', label: 'Plazas & rates', end: false },
+  { to: '/admin/transactions', label: 'Transactions', end: false },
+  { to: '/admin/users', label: 'Users', end: false },
   { to: '/operator', label: 'Toll simulator', end: true },
 ]
 
@@ -53,6 +60,7 @@ export default function AppLayout() {
               {l.label}
             </NavLink>
           ))}
+          {user?.role === 'USER' && <NotificationBell />}
           <span className="nav__user">
             {user?.name} <span className="badge">{user?.role}</span>
           </span>

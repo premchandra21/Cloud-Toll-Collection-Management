@@ -1,13 +1,17 @@
 import { Link } from 'react-router-dom'
 import { useVehicles } from '../../hooks/useVehicles'
 import { useWallet } from '../../hooks/useWallet'
+import { useTransactions } from '../../hooks/useTransactions'
 import { useAuth } from '../../features/auth/useAuth'
-import { formatMoney } from '../../utils/format'
+import { formatDateTime, formatMoney } from '../../utils/format'
+
+const NO_FILTERS = {}
 
 export default function UserDashboardPage() {
   const { user } = useAuth()
   const wallet = useWallet()
   const vehicles = useVehicles()
+  const recent = useTransactions(NO_FILTERS, 1, 5)
 
   const activeCount = vehicles.data?.filter((v) => v.isActive).length ?? 0
 
@@ -40,11 +44,48 @@ export default function UserDashboardPage() {
             Manage vehicles
           </Link>
         </article>
+      </section>
 
-        <article className="card">
-          <h3>Recent tolls</h3>
-          <p className="muted">Your toll history will appear here once toll processing is built.</p>
-        </article>
+      <section className="card section-gap">
+        <h3>Recent tolls</h3>
+        {recent.isPending && <p className="muted">Loading...</p>}
+        {recent.data && recent.data.items.length === 0 && (
+          <p className="muted">No tolls yet. They will appear here after a vehicle passes a plaza.</p>
+        )}
+        {recent.data && recent.data.items.length > 0 && (
+          <>
+            <div className="table-wrap">
+              <table className="table">
+                <tbody>
+                  {recent.data.items.map((t) => (
+                    <tr key={t.id}>
+                      <td>{formatDateTime(t.processedAt)}</td>
+                      <td>
+                        <strong>{t.vehicle.vehicleNumber}</strong> · {t.plaza.name}
+                      </td>
+                      <td>
+                        <span className={`status status--${t.status === 'SUCCESS' ? 'ok' : 'fail'}`}>
+                          {t.status === 'SUCCESS' ? 'Success' : 'Failed'}
+                        </span>
+                      </td>
+                      <td className="num">{formatMoney(t.amount)}</td>
+                      <td className="table__actions">
+                        <Link to={`/app/transactions/${t.id}`} className="link">
+                          Details
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="section-gap">
+              <Link to="/app/transactions" className="link">
+                View all toll history
+              </Link>
+            </p>
+          </>
+        )}
       </section>
     </>
   )
