@@ -38,6 +38,9 @@ Last updated: 2026-10-06
 - Vehicle number and RFID are normalised to uppercase (vehicle number also strips spaces and hyphens). Slice 6 must look vehicles up by RFID using rfidTagSchema from vehicle.schema.ts, so lookups match what is stored.
 - A vehicle owned by someone else returns 404 (not 403), so its existence isn't leaked. ADMIN can access all vehicles but must pass userId when creating one.
 - Top-up limits are ₹1 to ₹50,000 per request. The ledger shows referenceType SIMULATED_PAYMENT with a fake SIM- reference.
+- Setting a rate deactivates the current active rate and inserts the new one in one transaction. Rates are never edited in place or deleted, because toll transactions reference rateId. Re-saving the same amount is a no-op (changed: false).
+- GET /plazas (OPERATOR/ADMIN) returns each plaza with its active rates only. Slice 6 should look rates up with plazaId + vehicleType + isActive = true.
+- Plaza codes are normalised to uppercase. Concurrent rate changes surface as a 409 CONFLICT via the partial unique index (P2002).
 
 ## Status
 - [x] Slice 0: Scaffold client, server, Prisma 7, local Postgres, `/api/v1/health` returning db connected
@@ -47,7 +50,7 @@ Last updated: 2026-10-06
 Skipping deployment for now will do it after developing the app.
 - [x] Slice 3: Auth module (register, login, me, JWT, role middleware) + login/register pages + protected routes
 - [x] Slice 4: Vehicles + wallet (CRUD, ownership checks, simulated top-up, ledger) + driver pages
-- [ ] Slice 5: Plazas + rates (admin CRUD, active-rate rule) + admin pages
+- [x] Slice 5: Plazas + rates (admin CRUD, active-rate rule) + admin pages
 - [ ] Slice 6: Toll processing service + tests (idempotency, conditional debit, failures, low-balance) + operator toll simulator page
 - [ ] Slice 7: Transactions list/detail/CSV export + notifications + admin users
 - [ ] Slice 8: Dashboard aggregations (raw SQL) + dashboard pages
@@ -55,10 +58,10 @@ Skipping deployment for now will do it after developing the app.
 - [ ] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
 
 ## Current slice
-Slice 5
+Slice 6
 
 ## Next action
-Plazas + rates (admin CRUD, active-rate rule) + admin pages.
+Toll processing service + tests + operator toll simulator page
 
 ## Known gotchas
 - Free-tier hosts sleep when idle; warm the API before any demo.

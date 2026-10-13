@@ -8,6 +8,7 @@ import { errorHandler, notFound } from "./middleware/error.middleware.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { vehicleRouter } from "./modules/vehicles/vehicle.routes.js";
 import { walletRouter } from "./modules/wallet/wallet.routes.js";
+import { plazaRouter } from "./modules/plazas/plaza.routes.js";
 
 export const app = express();
 
@@ -28,6 +29,7 @@ app.get("/api/v1/health", async (_req, res) => {
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/vehicles", vehicleRouter);
 app.use("/api/v1/wallet", walletRouter);
+app.use("/api/v1/plazas", plazaRouter);
 
 // Must stay last
 app.use(notFound);

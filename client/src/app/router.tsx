@@ -10,6 +10,7 @@ import RoleHomePage from '../pages/RoleHomePage'
 import UserDashboardPage from '../pages/user/UserDashboardPage'
 import VehiclesPage from '../pages/user/VehiclesPage'
 import WalletPage from '../pages/user/WalletPage'
+import PlazasPage from '../pages/admin/PlazasPage'
 
 export const router = createBrowserRouter([
   {
@@ -42,7 +43,10 @@ export const router = createBrowserRouter([
           },
           {
             element: <ProtectedRoute allowedRoles={['ADMIN']} />,
-            children: [{ path: '/admin', element: <RoleHomePage /> }],
+            children: [
+              { path: '/admin', element: <RoleHomePage /> },
+              { path: '/admin/plazas', element: <PlazasPage /> },
+            ],
           },
         ],
       },

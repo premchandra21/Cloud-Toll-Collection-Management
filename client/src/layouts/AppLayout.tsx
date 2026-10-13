@@ -9,7 +9,12 @@ const USER_LINKS = [
   { to: '/app/wallet', label: 'Wallet', end: false },
 ]
 
-// Shell for every logged-in page. Later slices add OPERATOR / ADMIN links here.
+const ADMIN_LINKS = [
+  { to: '/admin', label: 'Home', end: true },
+  { to: '/admin/plazas', label: 'Plazas & rates', end: false },
+]
+
+// Shell for every logged-in page. Later slices add OPERATOR links and more ADMIN links here.
 export default function AppLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -19,6 +24,8 @@ export default function AppLayout() {
     navigate('/login', { replace: true })
   }
 
+  const links = user?.role === 'USER' ? USER_LINKS : user?.role === 'ADMIN' ? ADMIN_LINKS : []
+
   return (
     <div className="shell">
       <header className="topbar">
@@ -26,17 +33,16 @@ export default function AppLayout() {
           🛣️ TollCloud
         </Link>
         <nav className="nav">
-          {user?.role === 'USER' &&
-            USER_LINKS.map((l) => (
-              <NavLink
-                key={l.to}
-                to={l.to}
-                end={l.end}
-                className={({ isActive }) => `nav__link${isActive ? ' nav__link--active' : ''}`}
-              >
-                {l.label}
-              </NavLink>
-            ))}
+          {links.map((l) => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              end={l.end}
+              className={({ isActive }) => `nav__link${isActive ? ' nav__link--active' : ''}`}
+            >
+              {l.label}
+            </NavLink>
+          ))}
           <span className="nav__user">
             {user?.name} <span className="badge">{user?.role}</span>
           </span>
