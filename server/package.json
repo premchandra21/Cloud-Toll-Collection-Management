@@ -9,7 +9,8 @@
     "start": "tsx src/server.ts",
     "typecheck": "tsc --noEmit",
     "migrate:deploy": "prisma migrate deploy --config prisma7.config.ts",
-    "seed": "prisma db seed --config prisma7.config.ts"
+    "seed": "prisma db seed --config prisma7.config.ts",
+    "test": "tsx --test --test-reporter=spec src/modules/toll/toll.test.ts"
   },
   "keywords": [],
   "author": "",

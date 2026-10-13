@@ -11,6 +11,7 @@ import UserDashboardPage from '../pages/user/UserDashboardPage'
 import VehiclesPage from '../pages/user/VehiclesPage'
 import WalletPage from '../pages/user/WalletPage'
 import PlazasPage from '../pages/admin/PlazasPage'
+import TollSimulatorPage from '../pages/operator/TollSimulatorPage'
 
 export const router = createBrowserRouter([
   {
@@ -39,7 +40,7 @@ export const router = createBrowserRouter([
           },
           {
             element: <ProtectedRoute allowedRoles={['OPERATOR', 'ADMIN']} />,
-            children: [{ path: '/operator', element: <RoleHomePage /> }],
+            children: [{ path: '/operator', element: <TollSimulatorPage /> }],
           },
           {
             element: <ProtectedRoute allowedRoles={['ADMIN']} />,

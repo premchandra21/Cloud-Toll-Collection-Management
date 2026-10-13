@@ -9,6 +9,7 @@ import { authRouter } from "./modules/auth/auth.routes.js";
 import { vehicleRouter } from "./modules/vehicles/vehicle.routes.js";
 import { walletRouter } from "./modules/wallet/wallet.routes.js";
 import { plazaRouter } from "./modules/plazas/plaza.routes.js";
+import { tollRouter } from "./modules/toll/toll.routes.js";
 
 export const app = express();
 
@@ -30,6 +31,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/vehicles", vehicleRouter);
 app.use("/api/v1/wallet", walletRouter);
 app.use("/api/v1/plazas", plazaRouter);
+app.use("/api/v1/toll-transactions", tollRouter);
 
 // Must stay last
 app.use(notFound);

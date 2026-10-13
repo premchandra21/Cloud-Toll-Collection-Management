@@ -486,3 +486,51 @@ a {
 .note--error {
   color: var(--danger);
 }
+
+/* ---- Slice 6: toll simulator ---- */
+.result--ok {
+  border-left: 4px solid var(--ok);
+}
+
+.result--fail {
+  border-left: 4px solid var(--danger);
+}
+
+.result .alert {
+  margin-top: 0.75rem;
+}
+
+.result__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem 1.5rem;
+  margin: 1rem 0 0;
+}
+
+.result__grid dt {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.result__grid dd {
+  margin: 0.1rem 0 0;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.status--fail {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status--warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.chips .muted {
+  align-self: center;
+  font-size: 0.85rem;
+}

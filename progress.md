@@ -41,6 +41,13 @@ Last updated: 2026-10-06
 - Setting a rate deactivates the current active rate and inserts the new one in one transaction. Rates are never edited in place or deleted, because toll transactions reference rateId. Re-saving the same amount is a no-op (changed: false).
 - GET /plazas (OPERATOR/ADMIN) returns each plaza with its active rates only. Slice 6 should look rates up with plazaId + vehicleType + isActive = true.
 - Plaza codes are normalised to uppercase. Concurrent rate changes surface as a 409 CONFLICT via the partial unique index (P2002).
+- POST /toll-transactions/process returns 201 with data.status SUCCESS or FAILED for a newly recorded event, and 200 with idempotentReplay: true for a repeated key.
+- An idempotency key reused with a different RFID or plaza returns 409 DUPLICATE_TRANSACTION.
+Rejected events (VEHICLE_NOT_FOUND, VEHICLE_INACTIVE, PLAZA_INACTIVE, TOLL_RATE_NOT_FOUND) are logged with console.warn and not stored.
+- TOLL_DEBIT ledger rows are negative, with referenceType TOLL_TRANSACTION and referenceId set to the toll transaction id.
+- Notifications (TOLL_SUCCESS, TOLL_FAILED, LOW_BALANCE) are already created after commit. Slice 7 only needs list and mark-read endpoints plus the UI.
+- toll.repository.ts exports the shared txSelect shape, which Slice 7's list and detail endpoints should reuse.
+- Tests use Node's built-in runner (npm test), and the 50-parallel and 20-duplicate concurrency cases already pass.
 
 ## Status
 - [x] Slice 0: Scaffold client, server, Prisma 7, local Postgres, `/api/v1/health` returning db connected
@@ -51,23 +58,24 @@ Skipping deployment for now will do it after developing the app.
 - [x] Slice 3: Auth module (register, login, me, JWT, role middleware) + login/register pages + protected routes
 - [x] Slice 4: Vehicles + wallet (CRUD, ownership checks, simulated top-up, ledger) + driver pages
 - [x] Slice 5: Plazas + rates (admin CRUD, active-rate rule) + admin pages
-- [ ] Slice 6: Toll processing service + tests (idempotency, conditional debit, failures, low-balance) + operator toll simulator page
+- [x] Slice 6: Toll processing service + tests (idempotency, conditional debit, failures, low-balance) + operator toll simulator page
 - [ ] Slice 7: Transactions list/detail/CSV export + notifications + admin users
 - [ ] Slice 8: Dashboard aggregations (raw SQL) + dashboard pages
 - [ ] Slice 9: Evidence scripts (`concurrency-test.ts`, `simulate-traffic.ts`, reconciliation query)
 - [ ] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
 
 ## Current slice
-Slice 6
+Slice 7
 
 ## Next action
-Toll processing service + tests + operator toll simulator page
+Transactions list/detail/CSV export + notifications + admin users.
 
 ## Known gotchas
 - Free-tier hosts sleep when idle; warm the API before any demo.
 - Managed Postgres: use the pooled URL for the running app and the direct URL for migrations.
 - Express route order: declare `/toll-transactions/export` before `/:id`.
 - Never commit `.env` or `server/src/generated`.
+- the replay response's remainingBalance is the wallet's current balance, not the balance at the time of the original toll.
 
 ## Demo credentials (fill in after seeding)
 - Admin: admin@toll.test  /  Admin@123

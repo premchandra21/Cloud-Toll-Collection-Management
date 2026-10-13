@@ -9,12 +9,15 @@ const USER_LINKS = [
   { to: '/app/wallet', label: 'Wallet', end: false },
 ]
 
+const OPERATOR_LINKS = [{ to: '/operator', label: 'Toll simulator', end: true }]
+
 const ADMIN_LINKS = [
   { to: '/admin', label: 'Home', end: true },
   { to: '/admin/plazas', label: 'Plazas & rates', end: false },
+  { to: '/operator', label: 'Toll simulator', end: true },
 ]
 
-// Shell for every logged-in page. Later slices add OPERATOR links and more ADMIN links here.
+// Shell for every logged-in page. Later slices add more links per role here.
 export default function AppLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -24,7 +27,14 @@ export default function AppLayout() {
     navigate('/login', { replace: true })
   }
 
-  const links = user?.role === 'USER' ? USER_LINKS : user?.role === 'ADMIN' ? ADMIN_LINKS : []
+  const links =
+    user?.role === 'USER'
+      ? USER_LINKS
+      : user?.role === 'ADMIN'
+        ? ADMIN_LINKS
+        : user?.role === 'OPERATOR'
+          ? OPERATOR_LINKS
+          : []
 
   return (
     <div className="shell">
