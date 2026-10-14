@@ -12,6 +12,8 @@ import { plazaRouter } from "./modules/plazas/plaza.routes.js";
 import { tollRouter } from "./modules/toll/toll.routes.js";
 import { notificationRouter } from "./modules/notifications/notification.routes.js";
 import { userRouter } from "./modules/users/user.routes.js";
+import { dashboardRouter } from "./modules/dashboard/dashboard.routes.js";
+import { reportRouter } from "./modules/reports/report.routes.js";
 
 export const app = express();
 
@@ -36,6 +38,8 @@ app.use("/api/v1/plazas", plazaRouter);
 app.use("/api/v1/toll-transactions", tollRouter);
 app.use("/api/v1/notifications", notificationRouter);
 app.use("/api/v1/users", userRouter);
+app.use("/api/v1/dashboard", dashboardRouter);
+app.use("/api/v1/reports", reportRouter);
 
 // Must stay last
 app.use(notFound);

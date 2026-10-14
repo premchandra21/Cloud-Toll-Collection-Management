@@ -16,6 +16,7 @@ import TransactionsPage from '../pages/TransactionsPage'
 import TransactionDetailPage from '../pages/TransactionDetailPage'
 import NotificationsPage from '../pages/user/NotificationsPage'
 import UsersPage from '../pages/admin/UsersPage'
+import DashboardPage from '../pages/DashboardPage'
 
 export const router = createBrowserRouter([
   {
@@ -51,12 +52,13 @@ export const router = createBrowserRouter([
               { path: '/operator', element: <TollSimulatorPage /> },
               { path: '/operator/transactions', element: <TransactionsPage /> },
               { path: '/operator/transactions/:id', element: <TransactionDetailPage /> },
+              { path: '/operator/dashboard', element: <DashboardPage /> },
             ],
           },
           {
             element: <ProtectedRoute allowedRoles={['ADMIN']} />,
             children: [
-              { path: '/admin', element: <RoleHomePage /> },
+              { path: '/admin', element: <DashboardPage  /> },
               { path: '/admin/plazas', element: <PlazasPage /> },
               { path: '/admin/transactions', element: <TransactionsPage /> },
               { path: '/admin/transactions/:id', element: <TransactionDetailPage /> },

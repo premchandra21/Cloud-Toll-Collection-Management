@@ -605,3 +605,112 @@ a {
   margin: 0.15rem 0;
   color: var(--text);
 }
+
+
+
+/* ---- Slice 8: dashboard ---- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.kpi-grid .card h3 {
+  margin-bottom: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.range-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.range-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.range-form input {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.bars {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.bars__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+}
+
+.bars__track {
+  height: 10px;
+  margin: 0.25rem 0;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.bars__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.daily {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  height: 220px;
+  padding-top: 1rem;
+  overflow-x: auto;
+}
+
+.daily__col {
+  flex: 1 0 44px;
+  max-width: 90px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  text-align: center;
+}
+
+.daily__bar {
+  background: var(--primary);
+  border-radius: 6px 6px 0 0;
+  min-height: 2px;
+}
+
+.daily__value {
+  font-size: 0.68rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.daily__label {
+  height: 1.1rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+}

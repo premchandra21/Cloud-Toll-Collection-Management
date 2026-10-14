@@ -54,6 +54,11 @@ Rejected events (VEHICLE_NOT_FOUND, VEHICLE_INACTIVE, PLAZA_INACTIVE, TOLL_RATE_
 - Notifications are USER-only. The list response includes unreadCount, which drives the bell badge (polled every 20 seconds). PATCH /notifications/read-all was added beyond the spec.
 - PATCH /users/:id only toggles isActive, and an admin cannot deactivate themselves (409).
 - Transactions are browsed under /app, /operator or /admin /transactions depending on role, using one shared page.
+- Dashboard numbers are aggregated in PostgreSQL via $queryRaw tagged templates. Counts are cast to int and money to numeric(14,2)::text, so no BigInt, Decimal or float ever reaches the API.
+- Time filters take ISO strings read as timestamptz and converted with AT TIME ZONE 'UTC', because processedAt is a naive UTC timestamp. This makes results independent of the DB session timezone. Days are bucketed in the caller’s tz (IANA name, validated; defaults to UTC), and the daily series is capped at the newest 90 days.
+- Revenue counts SUCCESS tolls only. uncollected is the sum of FAILED toll amounts.
+- The by-vehicle-type breakdown groups by the applied rate’s vehicleType, so editing a vehicle’s type later never rewrites history. Plazas and vehicle types with no traffic still appear with zeros.
+- GET /dashboard/summary and GET /reports/revenue?groupBy=day|plaza|vehicleType are OPERATOR/ADMIN. One shared DashboardPage serves /admin and /operator/dashboard, and refetches every 15 seconds. The reconciliation endpoint is deferred to Slice 9.
 
 ## Status
 - [x] Slice 0: Scaffold client, server, Prisma 7, local Postgres, `/api/v1/health` returning db connected
@@ -66,12 +71,12 @@ Skipping deployment for now will do it after developing the app.
 - [x] Slice 5: Plazas + rates (admin CRUD, active-rate rule) + admin pages
 - [x] Slice 6: Toll processing service + tests (idempotency, conditional debit, failures, low-balance) + operator toll simulator page
 - [x] Slice 7: Transactions list/detail/CSV export + notifications + admin users
-- [ ] Slice 8: Dashboard aggregations (raw SQL) + dashboard pages
+- [x] Slice 8: Dashboard aggregations (raw SQL) + dashboard pages
 - [ ] Slice 9: Evidence scripts (`concurrency-test.ts`, `simulate-traffic.ts`, reconciliation query)
 - [ ] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
 
 ## Current slice
-Slice 8
+Slice 9
 
 ## Next action
 

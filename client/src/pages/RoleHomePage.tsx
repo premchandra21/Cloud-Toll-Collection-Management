@@ -2,6 +2,8 @@ import { useAuth } from '../features/auth/useAuth'
 
 // Temporary landing page for /app, /operator and /admin.
 // Replaced by real dashboards in later slices.
+
+//No longer used
 export default function RoleHomePage() {
   const { user } = useAuth()
 

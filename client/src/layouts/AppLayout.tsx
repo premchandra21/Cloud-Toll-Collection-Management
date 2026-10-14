@@ -13,11 +13,12 @@ const USER_LINKS = [
 
 const OPERATOR_LINKS = [
   { to: '/operator', label: 'Toll simulator', end: true },
+  { to: '/operator/dashboard', label: 'Dashboard', end: false },
   { to: '/operator/transactions', label: 'Transactions', end: false },
 ]
 
 const ADMIN_LINKS = [
-  { to: '/admin', label: 'Home', end: true },
+  { to: '/admin', label: 'Dashboard', end: true },
   { to: '/admin/plazas', label: 'Plazas & rates', end: false },
   { to: '/admin/transactions', label: 'Transactions', end: false },
   { to: '/admin/users', label: 'Users', end: false },
