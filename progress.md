@@ -73,11 +73,11 @@ Skipping deployment for now will do it after developing the app.
 - [x] Slice 7: Transactions list/detail/CSV export + notifications + admin users
 - [x] Slice 8: Dashboard aggregations (raw SQL) + dashboard pages
 - [x] Slice 8b, operator-to-plaza scoping via the operator_plazas table.
-- [ ] Slice 9: Evidence scripts (`concurrency-test.ts`, `simulate-traffic.ts`, reconciliation query)
+- [x] Slice 9: Evidence scripts (`concurrency-test.ts`, `simulate-traffic.ts`, reconciliation query)
 - [ ] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
 
 ## Current slice
-Slice 9
+Deployment left
 
 ## Next action
 
@@ -87,6 +87,11 @@ Slice 9
 - Express route order: declare `/toll-transactions/export` before `/:id`.
 - Never commit `.env` or `server/src/generated`.
 - the replay response's remainingBalance is the wallet's current balance, not the balance at the time of the original toll.
+
+## Test run
+- npm run evidence:concurrency
+- npm run evidence:traffic
+- npm run evidence:reconcile
 
 ## Demo credentials (fill in after seeding)
 - Admin: admin@toll.test  /  Admin@123
