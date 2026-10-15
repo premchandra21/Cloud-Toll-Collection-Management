@@ -5,6 +5,6 @@ import { dashboardService } from "./dashboard.service.js";
 
 export async function getSummary(req: Request, res: Response) {
   const query = dashboardQuerySchema.parse(req.query);
-  const summary = await dashboardService.summary(query);
+  const summary = await dashboardService.summary(query, req.user!);
   sendSuccess(res, summary, "Dashboard summary fetched");
 }

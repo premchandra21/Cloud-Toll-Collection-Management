@@ -7,7 +7,7 @@ import { tollService } from "./toll.service.js";
 // 200 = duplicate event: the existing transaction is returned and nothing was charged again.
 export async function processToll(req: Request, res: Response) {
   const input = processTollSchema.parse(req.body ?? {});
-  const result = await tollService.process(input);
+  const result = await tollService.process(input, req.user!);
 
   if (result.idempotentReplay) {
     sendSuccess(res, result, "Duplicate event: existing transaction returned", 200);

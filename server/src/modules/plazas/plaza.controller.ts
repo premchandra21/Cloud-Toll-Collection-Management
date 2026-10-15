@@ -11,8 +11,8 @@ import {
 } from "./plaza.schema.js";
 import { plazaService } from "./plaza.service.js";
 
-export async function listPlazas(_req: Request, res: Response) {
-  const plazas = await plazaService.list();
+export async function listPlazas(req: Request, res: Response) {
+  const plazas = await plazaService.list(req.user!);
   sendSuccess(res, { plazas }, "Plazas fetched");
 }
 

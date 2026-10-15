@@ -31,8 +31,13 @@ const plazaSelect = {
 } as const;
 
 export const plazaRepository = {
-  findAll() {
-    return prisma.tollPlaza.findMany({ select: plazaSelect, orderBy: { createdAt: "asc" } });
+  // onlyIds = null means every plaza; an array limits the result to those ids.
+  findAll(onlyIds: string[] | null = null) {
+    return prisma.tollPlaza.findMany({
+      where: onlyIds ? { id: { in: onlyIds } } : {},
+      select: plazaSelect,
+      orderBy: { createdAt: "asc" },
+    });
   },
 
   findById(id: string) {

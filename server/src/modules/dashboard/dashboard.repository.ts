@@ -1,4 +1,5 @@
 import { prisma } from "../../config/database.js";
+import { Prisma } from "../../generated/prisma/client.js";
 
 // All dashboard numbers are aggregated INSIDE PostgreSQL (spec section 3.1: raw SQL for aggregations).
 // Parameterised tagged templates only. Nothing from the request is ever concatenated into SQL.
@@ -15,6 +16,17 @@ import { prisma } from "../../config/database.js";
 export interface RangeParams {
   from: string | null; // ISO, inclusive
   to: string | null; // ISO, exclusive
+  // null = every plaza (ADMIN). An array = only these plazas (OPERATOR); [] matches nothing.
+  plazaIds: string[] | null;
+}
+
+// "AND <column> IN (...)" for a restricted caller. Every id is a bound parameter (never concatenated);
+// the column is a fixed string written in this file, never request input.
+function plazaFilter(column: string, plazaIds: string[] | null) {
+  if (plazaIds === null) return Prisma.empty;
+  if (plazaIds.length === 0) return Prisma.sql`AND FALSE`;
+  const ids = Prisma.join(plazaIds.map((id) => Prisma.sql`${id}::uuid`));
+  return Prisma.sql`AND ${Prisma.raw(column)} IN (${ids})`;
 }
 
 export interface Counts {
@@ -43,7 +55,7 @@ export interface DayRow extends Counts {
 }
 
 export const dashboardRepository = {
-  async totals({ from, to }: RangeParams): Promise<TotalsRow> {
+  async totals({ from, to, plazaIds }: RangeParams): Promise<TotalsRow> {
     const rows = await prisma.$queryRaw<TotalsRow[]>`
       SELECT
         COUNT(*)::int AS "transactions",
@@ -54,13 +66,14 @@ export const dashboardRepository = {
       FROM "toll_transactions" t
       WHERE (${from}::timestamptz IS NULL OR t."processedAt" >= (${from}::timestamptz AT TIME ZONE 'UTC'))
         AND (${to}::timestamptz IS NULL OR t."processedAt" < (${to}::timestamptz AT TIME ZONE 'UTC'))
+        ${plazaFilter('t."plazaId"', plazaIds)}
     `;
     return rows[0];
   },
 
   // LEFT JOIN with the time filter in the ON clause, so plazas with no tolls in the range still
   // appear with zeros instead of disappearing from the dashboard.
-  byPlaza({ from, to }: RangeParams) {
+  byPlaza({ from, to, plazaIds }: RangeParams) {
     return prisma.$queryRaw<PlazaRow[]>`
       SELECT
         p."id"::text AS "id", p."name", p."code",
@@ -73,6 +86,7 @@ export const dashboardRepository = {
         ON t."plazaId" = p."id"
        AND (${from}::timestamptz IS NULL OR t."processedAt" >= (${from}::timestamptz AT TIME ZONE 'UTC'))
        AND (${to}::timestamptz IS NULL OR t."processedAt" < (${to}::timestamptz AT TIME ZONE 'UTC'))
+      WHERE TRUE ${plazaFilter('p."id"', plazaIds)}
       GROUP BY p."id", p."name", p."code"
       ORDER BY COALESCE(SUM(t."amount") FILTER (WHERE t."status" = 'SUCCESS'), 0) DESC, p."name"
     `;
@@ -80,7 +94,7 @@ export const dashboardRepository = {
 
   // Grouped by the vehicle type of the RATE that was applied, so history stays correct even if a
   // vehicle's type is edited later. All four types are listed, with zeros when there was no traffic.
-  byVehicleType({ from, to }: RangeParams) {
+  byVehicleType({ from, to, plazaIds }: RangeParams) {
     return prisma.$queryRaw<VehicleTypeRow[]>`
       SELECT
         vt."vehicleType"::text AS "vehicleType",
@@ -95,6 +109,7 @@ export const dashboardRepository = {
         JOIN "toll_rates" r ON r."id" = t."rateId"
         WHERE (${from}::timestamptz IS NULL OR t."processedAt" >= (${from}::timestamptz AT TIME ZONE 'UTC'))
           AND (${to}::timestamptz IS NULL OR t."processedAt" < (${to}::timestamptz AT TIME ZONE 'UTC'))
+          ${plazaFilter('t."plazaId"', plazaIds)}
       ) x ON x."rateVehicleType" = vt."vehicleType"
       GROUP BY vt."vehicleType"
       ORDER BY vt."vehicleType"
@@ -103,7 +118,7 @@ export const dashboardRepository = {
 
   // Calendar days in the caller's time zone (a toll at 23:30 IST belongs to that IST day, not the UTC one).
   // Newest 90 days only, so an "all time" request cannot return an unbounded series.
-  byDay({ from, to }: RangeParams, tz: string) {
+  byDay({ from, to, plazaIds }: RangeParams, tz: string) {
     return prisma.$queryRaw<DayRow[]>`
       SELECT
         to_char(d."day", 'YYYY-MM-DD') AS "day",
@@ -118,6 +133,7 @@ export const dashboardRepository = {
         FROM "toll_transactions" t
         WHERE (${from}::timestamptz IS NULL OR t."processedAt" >= (${from}::timestamptz AT TIME ZONE 'UTC'))
           AND (${to}::timestamptz IS NULL OR t."processedAt" < (${to}::timestamptz AT TIME ZONE 'UTC'))
+          ${plazaFilter('t."plazaId"', plazaIds)}
       ) d
       GROUP BY d."day"
       ORDER BY d."day" DESC

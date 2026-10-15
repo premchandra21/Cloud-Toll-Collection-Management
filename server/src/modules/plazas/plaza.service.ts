@@ -1,5 +1,7 @@
 import { AppError } from "../../shared/errors/AppError.js";
 import { money } from "../../shared/utils/money.js";
+import type { AuthUser } from "../../shared/types.js";
+import { getPlazaScope } from "./plaza-access.js";
 import { plazaRepository } from "./plaza.repository.js";
 import type { CreatePlazaInput, SetRateInput, UpdatePlazaInput } from "./plaza.schema.js";
 
@@ -48,8 +50,9 @@ async function getPlaza(id: string) {
 }
 
 export const plazaService = {
-  async list() {
-    const rows = await plazaRepository.findAll();
+  // An OPERATOR only gets the plazas assigned to them; an ADMIN gets all of them.
+  async list(actor: AuthUser) {
+    const rows = await plazaRepository.findAll(await getPlazaScope(actor));
     return rows.map(toPlazaDto);
   },
 

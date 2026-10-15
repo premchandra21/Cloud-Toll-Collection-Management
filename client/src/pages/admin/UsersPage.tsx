@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import Pagination from '../../components/ui/Pagination'
+import OperatorPlazasEditor from '../../features/admin/OperatorPlazasEditor'
 import { useAuth } from '../../features/auth/useAuth'
 import { useAdminUsers, useSetUserActive } from '../../hooks/useAdminUsers'
 import type { Role } from '../../types/auth'
@@ -14,6 +15,7 @@ export default function UsersPage() {
   const [role, setRole] = useState<'' | Role>('')
   const [page, setPage] = useState(1)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const list = useAdminUsers({
     page,
@@ -28,6 +30,9 @@ export default function UsersPage() {
     setQ(qInput.trim())
     setPage(1)
   }
+
+  // Look the operator up in the current page so the editor always starts from fresh data.
+  const editing = list.data?.items.find((u) => u.id === editingId) ?? null
 
   const toggle = async (id: string, isActive: boolean) => {
     setActionError(null)
@@ -73,6 +78,14 @@ export default function UsersPage() {
 
       {actionError && <div className="alert alert--error section-gap">{actionError}</div>}
 
+      {editing && (
+        <OperatorPlazasEditor
+          key={editing.id}
+          operator={editing}
+          onClose={() => setEditingId(null)}
+        />
+      )}
+
       <section className="card section-gap">
         {list.isPending && <p className="muted">Loading users...</p>}
         {list.isError && <div className="alert alert--error">{getErrorMessage(list.error)}</div>}
@@ -86,6 +99,7 @@ export default function UsersPage() {
                   <tr>
                     <th>Name</th>
                     <th>Role</th>
+                    <th>Plazas</th>
                     <th className="num">Vehicles</th>
                     <th className="num">Wallet</th>
                     <th>Joined</th>
@@ -106,6 +120,25 @@ export default function UsersPage() {
                         <td>
                           <span className="badge badge--plain">{u.role}</span>
                         </td>
+                        <td>
+                          {u.role === 'OPERATOR' ? (
+                            u.plazas.length > 0 ? (
+                              <div className="plaza-tags">
+                                {u.plazas.map((p) => (
+                                  <span key={p.id} className="badge badge--plain">
+                                    {p.code}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="status status--warn">None assigned</span>
+                            )
+                          ) : u.role === 'ADMIN' ? (
+                            <span className="muted">All plazas</span>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
                         <td className="num">{u.role === 'USER' ? u.vehicleCount : '-'}</td>
                         <td className="num">{u.walletBalance ? formatMoney(u.walletBalance) : '-'}</td>
                         <td>{formatDateTime(u.createdAt)}</td>
@@ -115,6 +148,15 @@ export default function UsersPage() {
                           </span>
                         </td>
                         <td className="table__actions">
+                          {u.role === 'OPERATOR' && (
+                            <button
+                              type="button"
+                              className="btn btn--small btn--ghost"
+                              onClick={() => setEditingId(u.id)}
+                            >
+                              Plazas
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="btn btn--small btn--ghost"

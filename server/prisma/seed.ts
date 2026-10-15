@@ -12,6 +12,7 @@ type VehicleType = "CAR" | "BUS" | "TRUCK" | "HEAVY_VEHICLE";
 const DEMO_USERS: { name: string; email: string; password: string; role: Role }[] = [
   { name: "Admin", email: "admin@toll.test", password: "Admin@123", role: "ADMIN" },
   { name: "Operator One", email: "operator@toll.test", password: "Operator@123", role: "OPERATOR" },
+  { name: "Operator Two", email: "operator2@toll.test", password: "Operator@123", role: "OPERATOR" },
   { name: "Asha Driver", email: "asha@toll.test", password: "Driver@123", role: "USER" },
   { name: "Ravi Driver", email: "ravi@toll.test", password: "Driver@123", role: "USER" },
 ];
@@ -25,6 +26,13 @@ const PLAZAS = [
 const RATES: Record<string, Record<VehicleType, string>> = {
   "BBS-01": { CAR: "80.00", BUS: "160.00", TRUCK: "200.00", HEAVY_VEHICLE: "320.00" },
   "CTC-01": { CAR: "60.00", BUS: "120.00", TRUCK: "150.00", HEAVY_VEHICLE: "250.00" },
+};
+
+// Which plazas each operator may work at. Operator One only sees Bhubaneswar, Operator Two only Cuttack,
+// so the demo can show that one plaza's operator cannot touch the other's tolls. Admins need no entry.
+const OPERATOR_PLAZAS: Record<string, string[]> = {
+  "operator@toll.test": ["BBS-01"],
+  "operator2@toll.test": ["CTC-01"],
 };
 
 const VEHICLES: { ownerEmail: string; vehicleNumber: string; vehicleType: VehicleType; rfidTag: string }[] = [
@@ -75,6 +83,14 @@ async function main() {
         });
       }
     }
+  }
+
+  // Operator -> plaza assignments (only adds missing rows, so changes made by an admin are kept)
+  for (const [email, codes] of Object.entries(OPERATOR_PLAZAS)) {
+    await prisma.operatorPlaza.createMany({
+      data: codes.map((code) => ({ userId: users[email].id, plazaId: plazaIds[code] })),
+      skipDuplicates: true,
+    });
   }
 
   // Vehicles

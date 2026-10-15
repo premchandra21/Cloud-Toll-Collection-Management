@@ -1,5 +1,11 @@
 import type { Role } from './auth'
 
+export interface UserPlaza {
+  id: string
+  name: string
+  code: string
+}
+
 export interface AdminUser {
   id: string
   name: string
@@ -9,4 +15,5 @@ export interface AdminUser {
   createdAt: string
   vehicleCount: number
   walletBalance: string | null // drivers only
+  plazas: UserPlaza[] // operators only: the plazas they may work at (empty for everyone else)
 }

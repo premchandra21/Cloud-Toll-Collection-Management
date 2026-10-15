@@ -3,7 +3,7 @@ import { money } from "../../shared/utils/money.js";
 import { pageMeta } from "../../shared/utils/pagination.js";
 import type { AuthUser } from "../../shared/types.js";
 import { userRepository } from "./user.repository.js";
-import type { UpdateUserInput, UserListQuery } from "./user.schema.js";
+import type { SetUserPlazasInput, UpdateUserInput, UserListQuery } from "./user.schema.js";
 
 type UserRow = NonNullable<Awaited<ReturnType<typeof userRepository.findById>>>;
 
@@ -18,6 +18,8 @@ function toDto(u: UserRow) {
     vehicleCount: u._count.vehicles,
     // Only drivers have a wallet
     walletBalance: u.wallet ? money(u.wallet.balance) : null,
+    // The plazas an operator may work at (always [] for drivers and admins)
+    plazas: u.operatorPlazas.map((op) => op.plaza),
   };
 }
 
@@ -44,6 +46,29 @@ export const userService = {
     // A deactivated user is rejected on their very next request: requireAuth re-checks isActive in the DB.
     const updated = await userRepository.setActive(id, input.isActive);
     console.warn(`[users] admin=${actor.id} set user=${id} isActive=${input.isActive}`);
+    return toDto(updated);
+  },
+
+  // Admin sets which plazas an operator may work at. Takes effect on the operator's next request.
+  async setPlazas(id: string, input: SetUserPlazasInput, actor: AuthUser) {
+    const existing = await userRepository.findById(id);
+    if (!existing) throw new AppError(404, "RESOURCE_NOT_FOUND", "User not found");
+
+    // Admins already reach every plaza and drivers never use staff features, so an assignment
+    // on those accounts would be meaningless (and would silently do nothing).
+    if (existing.role !== "OPERATOR") {
+      throw new AppError(409, "CONFLICT", "Plazas can only be assigned to operators");
+    }
+
+    if (input.plazaIds.length > 0) {
+      const found = await userRepository.countPlazas(input.plazaIds);
+      if (found !== input.plazaIds.length) {
+        throw new AppError(404, "RESOURCE_NOT_FOUND", "One or more plazas were not found");
+      }
+    }
+
+    const updated = await userRepository.replacePlazas(id, input.plazaIds);
+    console.warn(`[users] admin=${actor.id} set operator=${id} plazas=[${input.plazaIds.join(",")}]`);
     return toDto(updated);
   },
 };

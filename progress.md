@@ -72,6 +72,7 @@ Skipping deployment for now will do it after developing the app.
 - [x] Slice 6: Toll processing service + tests (idempotency, conditional debit, failures, low-balance) + operator toll simulator page
 - [x] Slice 7: Transactions list/detail/CSV export + notifications + admin users
 - [x] Slice 8: Dashboard aggregations (raw SQL) + dashboard pages
+- [x] Slice 8b, operator-to-plaza scoping via the operator_plazas table.
 - [ ] Slice 9: Evidence scripts (`concurrency-test.ts`, `simulate-traffic.ts`, reconciliation query)
 - [ ] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
 

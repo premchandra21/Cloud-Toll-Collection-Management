@@ -107,7 +107,14 @@ before(async () => {
   });
   plazaId = plaza.id;
   inactivePlazaId = inactive.id;
-  plazaIds.push(plaza.id, inactive.id);
+   plazaIds.push(plaza.id, inactive.id);
+
+  // Operators may only work at assigned plazas, so assign the demo operator to the test plazas.
+  // (The rows are removed automatically when the plazas are deleted in after().)
+  const operator = await prisma.user.findUniqueOrThrow({ where: { email: "operator@toll.test" } });
+  await prisma.operatorPlaza.createMany({
+    data: plazaIds.map((id) => ({ userId: operator.id, plazaId: id })),
+  });
 
   // Only CAR has a rate (80.00) on purpose: TRUCK is used for the "no rate" test.
   for (const id of plazaIds) {

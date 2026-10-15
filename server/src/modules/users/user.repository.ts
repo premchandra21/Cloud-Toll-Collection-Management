@@ -11,6 +11,11 @@ const userSelect = {
   createdAt: true,
   wallet: { select: { balance: true } },
   _count: { select: { vehicles: true } },
+  // Only operators have rows here (the plazas they may work at)
+  operatorPlazas: {
+    select: { plaza: { select: { id: true, name: true, code: true } } },
+    orderBy: { plaza: { code: "asc" } },
+  },
 } as const;
 
 export const userRepository = {
@@ -43,6 +48,20 @@ export const userRepository = {
 
   findById(id: string) {
     return prisma.user.findUnique({ where: { id }, select: userSelect });
+  },
+
+  countPlazas(ids: string[]) {
+    return prisma.tollPlaza.count({ where: { id: { in: ids } } });
+  },
+
+  // Replace the operator's whole plaza set in one transaction, so there is never a moment
+  // where they have half of the old set and half of the new one.
+  async replacePlazas(userId: string, plazaIds: string[]) {
+    await prisma.$transaction([
+      prisma.operatorPlaza.deleteMany({ where: { userId } }),
+      prisma.operatorPlaza.createMany({ data: plazaIds.map((plazaId) => ({ userId, plazaId })) }),
+    ]);
+    return prisma.user.findUniqueOrThrow({ where: { id: userId }, select: userSelect });
   },
 
   setActive(id: string, isActive: boolean) {

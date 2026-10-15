@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit",
     "migrate:deploy": "prisma migrate deploy --config prisma7.config.ts",
     "seed": "prisma db seed --config prisma7.config.ts",
-    "test": "tsx --test --test-reporter=spec src/modules/toll/toll.test.ts"
+    "evidence:concurrency": "tsx scripts/concurrency-test.ts",
+    "evidence:traffic": "tsx scripts/simulate-traffic.ts",
+    "evidence:reconcile": "tsx scripts/reconcile.ts",
+    "test": "tsx --test --test-reporter=spec src/modules/toll/toll.test.ts src/modules/toll/plaza-scope.test.ts src/modules/reports/reconciliation.test.ts"
   },
   "keywords": [],
   "author": "",

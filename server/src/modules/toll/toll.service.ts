@@ -2,6 +2,8 @@ import { env } from "../../config/env.js";
 import { AppError } from "../../shared/errors/AppError.js";
 import { money } from "../../shared/utils/money.js";
 import type { DecimalLike } from "../../shared/utils/money.js";
+import type { AuthUser } from "../../shared/types.js";
+import { canAccessPlaza, getPlazaScope } from "../plazas/plaza-access.js";
 import { tollRepository } from "./toll.repository.js";
 import type { ProcessTollInput } from "./toll.schema.js";
 
@@ -93,7 +95,18 @@ async function notify(userId: string, result: ReturnType<typeof toResult>) {
 }
 
 export const tollService = {
-  async process(input: ProcessTollInput) {
+  async process(input: ProcessTollInput, actor: AuthUser) {
+    // 1-2. The plaza must exist, and an OPERATOR may only work at the plazas assigned to them.
+    // This runs BEFORE the idempotency lookup on purpose: otherwise an operator could replay another
+    // plaza's key and read back that plaza's vehicle and transaction details.
+    const plaza = await tollRepository.findPlaza(input.plazaId);
+    if (!plaza) throw reject(input, 404, "RESOURCE_NOT_FOUND", "Plaza not found");
+
+    const scope = await getPlazaScope(actor);
+    if (!canAccessPlaza(scope, plaza.id)) {
+      console.warn(`[toll] operator=${actor.id} tried to process at unassigned plaza=${plaza.id}`);
+      throw reject(input, 403, "PLAZA_NOT_ASSIGNED", "You are not assigned to this toll plaza");
+    }
     // 3. Idempotency: a key we have already processed returns the stored result, no debit.
     const existing = await tollRepository.findByIdempotencyKey(input.idempotencyKey);
     if (existing) return replay(existing, input);
@@ -104,8 +117,6 @@ export const tollService = {
     if (!vehicle.isActive) throw reject(input, 409, "VEHICLE_INACTIVE", "This vehicle is inactive");
 
     // Plaza must exist and be active
-    const plaza = await tollRepository.findPlaza(input.plazaId);
-    if (!plaza) throw reject(input, 404, "RESOURCE_NOT_FOUND", "Plaza not found");
     if (!plaza.isActive) throw reject(input, 409, "PLAZA_INACTIVE", "This toll plaza is inactive");
 
     // 6. Active rate for plaza + vehicle type

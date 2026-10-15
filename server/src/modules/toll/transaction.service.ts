@@ -3,6 +3,7 @@ import { toCsv } from "../../shared/utils/csv.js";
 import { money } from "../../shared/utils/money.js";
 import { pageMeta } from "../../shared/utils/pagination.js";
 import type { AuthUser } from "../../shared/types.js";
+import { canAccessPlaza, getPlazaScope } from "../plazas/plaza-access.js";
 import { transactionRepository } from "./transaction.repository.js";
 import type { TransactionFilters, TransactionListQuery } from "./transaction.schema.js";
 
@@ -10,8 +11,19 @@ export const MAX_EXPORT_ROWS = 10_000;
 
 type TxRow = NonNullable<Awaited<ReturnType<typeof transactionRepository.findById>>>;
 
-// A USER only ever sees tolls of vehicles they own. Operators and admins see everything.
-const scopeFor = (actor: AuthUser) => (actor.role === "USER" ? { userId: actor.id } : {});
+// A USER only sees tolls of vehicles they own. An OPERATOR only sees tolls at their assigned
+// plazas. An ADMIN sees everything.
+async function scopeFor(actor: AuthUser): Promise<{ userId?: string; plazaIds?: string[] }> {
+  if (actor.role === "USER") return { userId: actor.id };
+  if (actor.role === "OPERATOR") return { plazaIds: (await getPlazaScope(actor)) ?? [] };
+  return {};
+}
+
+async function canView(row: TxRow, actor: AuthUser): Promise<boolean> {
+  if (actor.role === "USER") return row.vehicle.userId === actor.id;
+  if (actor.role === "OPERATOR") return canAccessPlaza(await getPlazaScope(actor), row.plaza.id);
+  return true;
+}
 
 function toDto(t: TxRow, actor: AuthUser) {
   return {
@@ -38,7 +50,7 @@ function toDto(t: TxRow, actor: AuthUser) {
 export const transactionService = {
   async list(query: TransactionListQuery, actor: AuthUser) {
     const { page, pageSize, ...filters } = query;
-    const { rows, total } = await transactionRepository.list(filters, scopeFor(actor), {
+    const { rows, total } = await transactionRepository.list(filters, await scopeFor(actor), {
       skip: (page - 1) * pageSize,
       take: pageSize,
     });
@@ -47,8 +59,9 @@ export const transactionService = {
 
   async getById(id: string, actor: AuthUser) {
     const row = await transactionRepository.findById(id);
-    // Someone else's transaction is reported as 404 so its existence is not leaked.
-    if (!row || (actor.role === "USER" && row.vehicle.userId !== actor.id)) {
+    // A transaction outside the caller's scope (another driver's, or another plaza's) is reported
+    // as 404 so its existence is not leaked.
+    if (!row || !(await canView(row, actor))) {
       throw new AppError(404, "RESOURCE_NOT_FOUND", "Transaction not found");
     }
 
@@ -61,7 +74,7 @@ export const transactionService = {
   },
 
   async exportCsv(filters: TransactionFilters, actor: AuthUser) {
-    const rows = await transactionRepository.findForExport(filters, scopeFor(actor), MAX_EXPORT_ROWS);
+    const rows = await transactionRepository.findForExport(filters, await scopeFor(actor), MAX_EXPORT_ROWS);
 
     return toCsv(
       [

@@ -25,3 +25,9 @@ export async function setUserActive(id: string, isActive: boolean): Promise<Admi
   const res = await api.patch<ApiSuccess<{ user: AdminUser }>>(`/users/${id}`, { isActive })
   return res.data.data.user
 }
+
+// Replaces the operator's whole plaza set. An empty array removes every assignment.
+export async function setUserPlazas(id: string, plazaIds: string[]): Promise<AdminUser> {
+  const res = await api.put<ApiSuccess<{ user: AdminUser }>>(`/users/${id}/plazas`, { plazaIds })
+  return res.data.data.user
+}

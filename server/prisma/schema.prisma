@@ -51,6 +51,7 @@ model User {
   vehicles      Vehicle[]
   wallet        Wallet?
   notifications Notification[]
+  operatorPlazas OperatorPlaza[]
 
   @@map("users")
 }
@@ -112,6 +113,7 @@ model TollPlaza {
 
   rates            TollRate[]
   tollTransactions TollTransaction[]
+  operatorPlazas   OperatorPlaza[]
 
   @@map("toll_plazas")
 }
@@ -170,4 +172,19 @@ model Notification {
 
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+// Which plazas an OPERATOR may work at (process tolls, see transactions, see dashboard numbers).
+// ADMINs are not listed here: they can access every plaza.
+model OperatorPlaza {
+  userId    String   @db.Uuid
+  plazaId   String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plaza TollPlaza @relation(fields: [plazaId], references: [id], onDelete: Cascade)
+
+  @@id([userId, plazaId])
+  @@index([plazaId])
+  @@map("operator_plazas")
 }

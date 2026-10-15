@@ -714,3 +714,38 @@ a {
   color: var(--muted);
   white-space: nowrap;
 }
+
+/* ---- Operator plaza assignment (admin users page) ---- */
+.plaza-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.plaza-picker__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.plaza-picker__item input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+}
+
+.plaza-picker__item--on {
+  border-color: var(--primary);
+  background: #f0fdfa;
+}
+
+.plaza-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
