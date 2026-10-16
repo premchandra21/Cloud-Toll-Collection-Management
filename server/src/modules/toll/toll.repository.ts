@@ -1,4 +1,6 @@
 import { prisma } from "../../config/database.js";
+import type { Prisma } from "../../generated/prisma/client.js";
+import { fromCents, toCents } from "../../shared/utils/money.js";
 
 // Shape shared by every toll-transaction read (the list/detail endpoints in Slice 7 can reuse it).
 const txSelect = {
@@ -9,6 +11,9 @@ const txSelect = {
   failureReason: true,
   processedAt: true,
   plazaId: true,
+  onCredit: true,
+  creditDueAt: true,
+  settledAt: true,
   vehicle: {
     select: { id: true, userId: true, vehicleNumber: true, vehicleType: true, rfidTag: true },
   },
@@ -22,11 +27,77 @@ interface ExecuteTollInput {
   rateId: string;
   walletId: string;
   amount: string; // "80.00" - money stays a string, never a float
+  // null = this wallet has no pay-later facility, so a short wallet simply FAILS (old behaviour).
+  credit: { dueAt: Date; timeZone: string } | null;
+}
+
+export type CreditDenial =
+  | "INSUFFICIENT_BALANCE"
+  | "CREDIT_OVERDUE"
+  | "CREDIT_LIMIT_EXCEEDED"
+  | "CREDIT_MONTHLY_LIMIT_EXCEEDED";
+
+type CreditDecision =
+  | { allowed: true; outstandingAfter: string; limit: string }
+  | { allowed: false; reason: CreditDenial };
+
+// Decides whether a toll the wallet cannot cover may pass on credit.
+// MUST run inside the toll's DB transaction AFTER the wallet row is locked (FOR UPDATE), so two
+// tolls of the same driver can never both squeeze under the limit.
+async function decideCredit(
+  tx: Prisma.TransactionClient,
+  walletId: string,
+  amount: string,
+  timeZone: string,
+): Promise<CreditDecision> {
+  const wallet = await tx.wallet.findUniqueOrThrow({
+    where: { id: walletId },
+    select: { userId: true, creditLimit: true, monthlyCreditLimit: true },
+  });
+  const limit = toCents(wallet.creditLimit);
+  const monthly = toCents(wallet.monthlyCreditLimit);
+  // Facility switched off after the caller's earlier read.
+  if (limit <= 0 || monthly <= 0) return { allowed: false, reason: "INSUFFICIENT_BALANCE" };
+
+  // One aggregate over this driver's credit tolls (all their vehicles), computed inside PostgreSQL.
+  //  outstanding   = credit tolls not yet settled
+  //  overdue       = unsettled credit tolls past their due date
+  //  usedThisMonth = credit taken since the start of the calendar month in `timeZone`
+  // "processedAt"/"creditDueAt" are timestamps WITHOUT time zone holding UTC, hence AT TIME ZONE 'UTC'.
+  const rows = await tx.$queryRaw<{ outstanding: string; overdue: number; usedThisMonth: string }[]>`
+    SELECT
+      COALESCE(SUM(t."amount") FILTER (WHERE t."settledAt" IS NULL), 0)::numeric(14,2)::text AS "outstanding",
+      (COUNT(*) FILTER (
+        WHERE t."settledAt" IS NULL AND t."creditDueAt" < (now() AT TIME ZONE 'UTC')
+      ))::int AS "overdue",
+      COALESCE(SUM(t."amount") FILTER (
+        WHERE t."processedAt" >= ((date_trunc('month', now() AT TIME ZONE ${timeZone}::text) AT TIME ZONE ${timeZone}::text) AT TIME ZONE 'UTC')
+      ), 0)::numeric(14,2)::text AS "usedThisMonth"
+    FROM "toll_transactions" t
+    JOIN "vehicles" v ON v."id" = t."vehicleId"
+    WHERE v."userId" = ${wallet.userId}::uuid AND t."onCredit" = true
+  `;
+  const { outstanding, overdue, usedThisMonth } = rows[0]!;
+  const need = toCents(amount);
+
+  if (overdue > 0) return { allowed: false, reason: "CREDIT_OVERDUE" };
+  if (toCents(outstanding) + need > limit) return { allowed: false, reason: "CREDIT_LIMIT_EXCEEDED" };
+  if (toCents(usedThisMonth) + need > monthly) {
+    return { allowed: false, reason: "CREDIT_MONTHLY_LIMIT_EXCEEDED" };
+  }
+  return { allowed: true, outstandingAfter: fromCents(toCents(outstanding) + need), limit: fromCents(limit) };
 }
 
 interface NotificationInput {
   userId: string;
-  type: "LOW_BALANCE" | "TOLL_SUCCESS" | "TOLL_FAILED";
+  type:
+    | "LOW_BALANCE"
+    | "TOLL_SUCCESS"
+    | "TOLL_FAILED"
+    | "CREDIT_USED"
+    | "CREDIT_DUE_SOON"
+    | "CREDIT_OVERDUE"
+    | "CREDIT_SETTLED";
   title: string;
   message: string;
 }
@@ -58,31 +129,67 @@ export const tollRepository = {
   },
 
   findWalletByUserId(userId: string) {
-    return prisma.wallet.findUnique({ where: { userId }, select: { id: true, balance: true } });
+    return prisma.wallet.findUnique({
+      where: { userId },
+      select: { id: true, balance: true, creditLimit: true, monthlyCreditLimit: true },
+    });
   },
 
   // Steps 8-12 of the spec flow in ONE database transaction:
   //   1) conditional debit (a single UPDATE ... WHERE balance >= amount)
-  //   2) toll transaction row (SUCCESS, or FAILED when the debit matched no row)
-  //   3) TOLL_DEBIT ledger row (SUCCESS only), stored NEGATIVE so SUM(ledger) == balance
+  //   2) if the wallet is short AND has a pay-later facility: lock the wallet row, re-try the debit
+  //      (a top-up may have landed while we waited) and then check the credit rules
+  //   3) toll transaction row: SUCCESS (paid), SUCCESS + onCredit (passed on credit, NO debit yet),
+  //      or FAILED with the reason
+  //   4) TOLL_DEBIT ledger row for a paid SUCCESS only, stored NEGATIVE so SUM(ledger) == balance
   // If any insert throws (e.g. duplicate idempotencyKey) the debit rolls back with it.
   executeToll(input: ExecuteTollInput) {
-    const { idempotencyKey, vehicleId, plazaId, rateId, walletId, amount } = input;
+    const { idempotencyKey, vehicleId, plazaId, rateId, walletId, amount, credit } = input;
 
     return prisma.$transaction(
       async (tx) => {
-        const { count } = await tx.wallet.updateMany({
-          where: { id: walletId, balance: { gte: amount } },
-          data: { balance: { decrement: amount } },
-        });
+        const debit = () =>
+          tx.wallet.updateMany({
+            where: { id: walletId, balance: { gte: amount } },
+            data: { balance: { decrement: amount } },
+          });
 
-        // We still hold the row lock after a successful debit, so this read is our own balance.
+        let { count } = await debit();
+        let decision: CreditDecision | null = null;
+        if (count === 0 && credit) {
+          await tx.$queryRaw`SELECT "id" FROM "wallets" WHERE "id" = ${walletId}::uuid FOR UPDATE`;
+          ({ count } = await debit());
+          if (count === 0) decision = await decideCredit(tx, walletId, amount, credit.timeZone);
+        }
+
+        // We still hold the row lock after a successful debit / the explicit lock, so this read is our own balance.
         const wallet = await tx.wallet.findUniqueOrThrow({
           where: { id: walletId },
           select: { balance: true },
         });
 
         if (count === 0) {
+          if (decision?.allowed && credit) {
+            const transaction = await tx.tollTransaction.create({
+              data: {
+                idempotencyKey,
+                vehicleId,
+                plazaId,
+                rateId,
+                amount,
+                status: "SUCCESS",
+                onCredit: true,
+                creditDueAt: credit.dueAt,
+              },
+              select: txSelect,
+            });
+            return {
+              transaction,
+              balance: wallet.balance,
+              creditPosition: { outstanding: decision.outstandingAfter, limit: decision.limit },
+            };
+          }
+
           const transaction = await tx.tollTransaction.create({
             data: {
               idempotencyKey,
@@ -91,11 +198,11 @@ export const tollRepository = {
               rateId,
               amount,
               status: "FAILED",
-              failureReason: "INSUFFICIENT_BALANCE",
+              failureReason: decision && !decision.allowed ? decision.reason : "INSUFFICIENT_BALANCE",
             },
             select: txSelect,
           });
-          return { transaction, balance: wallet.balance };
+          return { transaction, balance: wallet.balance, creditPosition: null };
         }
 
         const transaction = await tx.tollTransaction.create({
@@ -115,7 +222,7 @@ export const tollRepository = {
           },
         });
 
-        return { transaction, balance: wallet.balance };
+        return { transaction, balance: wallet.balance, creditPosition: null };
       },
       // Many requests can queue on one wallet row, so allow more than the 2s/5s defaults.
       { maxWait: 15_000, timeout: 30_000 },

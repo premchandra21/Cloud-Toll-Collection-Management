@@ -64,6 +64,7 @@ export const reconciliationRepository = {
         (SELECT COUNT(*) FROM "toll_transactions" WHERE "status" = 'SUCCESS')::int AS "successTolls",
         (SELECT COUNT(*) FROM "toll_transactions" t
           WHERE t."status" = 'SUCCESS'
+            AND NOT (t."onCredit" = true AND t."settledAt" IS NULL)
             AND NOT EXISTS (
               SELECT 1 FROM "wallet_transactions" l
               WHERE l."type" = 'TOLL_DEBIT'

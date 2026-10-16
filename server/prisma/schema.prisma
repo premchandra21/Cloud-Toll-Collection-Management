@@ -36,6 +36,10 @@ enum NotificationType {
   LOW_BALANCE
   TOLL_SUCCESS
   TOLL_FAILED
+  CREDIT_USED
+  CREDIT_DUE_SOON
+  CREDIT_OVERDUE
+  CREDIT_SETTLED
 }
 
 model User {
@@ -48,9 +52,9 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  vehicles      Vehicle[]
-  wallet        Wallet?
-  notifications Notification[]
+  vehicles       Vehicle[]
+  wallet         Wallet?
+  notifications  Notification[]
   operatorPlazas OperatorPlaza[]
 
   @@map("users")
@@ -74,9 +78,15 @@ model Vehicle {
 }
 
 model Wallet {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @unique @db.Uuid
-  balance   Decimal  @default(0) @db.Decimal(12, 2)
+  id      String  @id @default(uuid()) @db.Uuid
+  userId  String  @unique @db.Uuid
+  balance Decimal @default(0) @db.Decimal(12, 2)
+
+  // Pay-later (toll on credit). The facility is ON only when BOTH limits are above 0;
+  // the default 0 / 0 means off, so existing wallets behave exactly as before.
+  creditLimit        Decimal @default(0) @db.Decimal(12, 2) // max unpaid credit at any moment
+  monthlyCreditLimit Decimal @default(0) @db.Decimal(12, 2) // max credit taken in one calendar month
+
   updatedAt DateTime @updatedAt
 
   user         User                @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -148,6 +158,12 @@ model TollTransaction {
   processedAt    DateTime              @default(now())
   createdAt      DateTime              @default(now())
 
+  // Pay-later: onCredit = the vehicle passed WITHOUT a wallet debit. The toll is owed until
+  // settledAt is set (the debit + ledger row are written at settlement time).
+  onCredit    Boolean   @default(false)
+  creditDueAt DateTime?
+  settledAt   DateTime?
+
   vehicle Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   plaza   TollPlaza @relation(fields: [plazaId], references: [id], onDelete: Restrict)
   rate    TollRate  @relation(fields: [rateId], references: [id], onDelete: Restrict)
@@ -156,6 +172,7 @@ model TollTransaction {
   @@index([plazaId])
   @@index([status])
   @@index([createdAt])
+  @@index([vehicleId, onCredit, settledAt])
   @@map("toll_transactions")
 }
 

@@ -5,6 +5,7 @@ import type { DecimalLike } from "../../shared/utils/money.js";
 import type { AuthUser } from "../../shared/types.js";
 import { canAccessPlaza, getPlazaScope } from "../plazas/plaza-access.js";
 import { tollRepository } from "./toll.repository.js";
+import type { CreditDenial } from "./toll.repository.js";
 import type { ProcessTollInput } from "./toll.schema.js";
 
 type TxRow = NonNullable<Awaited<ReturnType<typeof tollRepository.findByIdempotencyKey>>>;
@@ -20,7 +21,17 @@ function reject(input: ProcessTollInput, status: number, code: string, message: 
   return new AppError(status, code, message);
 }
 
-function toResult(t: TxRow, balance: DecimalLike, idempotentReplay: boolean) {
+interface CreditPosition {
+  outstanding: string;
+  limit: string;
+}
+
+function toResult(
+  t: TxRow,
+  balance: DecimalLike,
+  idempotentReplay: boolean,
+  creditPosition: CreditPosition | null = null,
+) {
   return {
     transactionId: t.id,
     idempotencyKey: t.idempotencyKey,
@@ -31,6 +42,16 @@ function toResult(t: TxRow, balance: DecimalLike, idempotentReplay: boolean) {
     failureReason: t.failureReason,
     processedAt: t.processedAt,
     idempotentReplay,
+    // Pay-later: set when the vehicle passed without a wallet debit. outstanding/limit are only
+    // known for the request that created the toll (null on a replay).
+    credit: t.onCredit
+      ? {
+          dueAt: t.creditDueAt,
+          settled: t.settledAt !== null,
+          outstanding: creditPosition?.outstanding ?? null,
+          limit: creditPosition?.limit ?? null,
+        }
+      : null,
     vehicle: {
       id: t.vehicle.id,
       vehicleNumber: t.vehicle.vehicleNumber,
@@ -57,11 +78,49 @@ async function replay(existing: TxRow, input: ProcessTollInput) {
   return toResult(existing, wallet.balance, true);
 }
 
+function failedMessage(result: ReturnType<typeof toResult>, where: string) {
+  const head = `The toll of ₹${result.amount} at ${where} failed`;
+  switch (result.failureReason as CreditDenial | null) {
+    case "CREDIT_OVERDUE":
+      return `${head}: you have overdue pay-later dues. Pay them to use pay-later again, or top up your wallet.`;
+    case "CREDIT_LIMIT_EXCEEDED":
+      return `${head}: your pay-later credit limit is used up. Pay your dues or top up your wallet.`;
+    case "CREDIT_MONTHLY_LIMIT_EXCEEDED":
+      return `${head}: your monthly pay-later limit is used up. Please top up your wallet.`;
+    default:
+      return `${head}: balance ₹${result.remainingBalance} is too low. Please top up.`;
+  }
+}
+
+function formatDueDate(d: Date | null) {
+  if (!d) return "the due date";
+  return d.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: env.CREDIT_TIMEZONE,
+  });
+}
+
 // Runs AFTER the transaction committed. A notification problem must never undo a toll.
 async function notify(userId: string, result: ReturnType<typeof toResult>) {
   try {
     const where = `${result.plaza.name} for ${result.vehicle.vehicleNumber}`;
-    if (result.status === "SUCCESS") {
+    if (result.status === "SUCCESS" && result.credit) {
+      // Passed on credit: the wallet was NOT charged, so no "toll paid" message.
+      const position =
+        result.credit.outstanding && result.credit.limit
+          ? ` Unpaid credit: ₹${result.credit.outstanding} of ₹${result.credit.limit}.`
+          : "";
+      await tollRepository.createNotifications([
+        {
+          userId,
+          type: "CREDIT_USED",
+          title: "Toll passed on credit",
+          message: `₹${result.amount} at ${where} was added to your pay-later dues. Pay by ${formatDueDate(result.credit.dueAt)}.${position}`,
+        },
+      ]);
+    } else if (result.status === "SUCCESS") {
       const rows: Parameters<typeof tollRepository.createNotifications>[0] = [
         {
           userId,
@@ -85,7 +144,7 @@ async function notify(userId: string, result: ReturnType<typeof toResult>) {
           userId,
           type: "TOLL_FAILED",
           title: "Toll payment failed",
-          message: `The toll of ₹${result.amount} at ${where} failed: balance ₹${result.remainingBalance} is too low. Please top up.`,
+          message: failedMessage(result, where),
         },
       ]);
     }
@@ -138,6 +197,11 @@ export const tollService = {
         rateId: rate.id,
         walletId: wallet.id,
         amount: money(rate.amount),
+        // Pay-later is on only when both limits are set; the repository re-checks under a lock.
+        credit:
+          !wallet.creditLimit.lte(0) && !wallet.monthlyCreditLimit.lte(0)
+            ? { dueAt: new Date(Date.now() + env.CREDIT_DUE_DAYS * 86_400_000), timeZone: env.CREDIT_TIMEZONE }
+            : null,
       });
     } catch (err) {
       // Two identical events raced: the other one won. Its transaction committed, ours rolled
@@ -149,7 +213,7 @@ export const tollService = {
       throw err;
     }
 
-    const result = toResult(outcome.transaction, outcome.balance, false);
+    const result = toResult(outcome.transaction, outcome.balance, false, outcome.creditPosition);
 
     // 14. Notifications after commit
     await notify(vehicle.userId, result);

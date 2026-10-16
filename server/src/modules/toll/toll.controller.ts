@@ -15,7 +15,11 @@ export async function processToll(req: Request, res: Response) {
   }
   const message =
     result.status === "SUCCESS"
-      ? "Toll processed successfully"
-      : "Toll failed: insufficient wallet balance";
+      ? result.credit
+        ? "Toll passed on credit: payment is due later"
+        : "Toll processed successfully"
+      : result.failureReason === "INSUFFICIENT_BALANCE"
+        ? "Toll failed: insufficient wallet balance"
+        : `Toll failed: ${result.failureReason}`;
   sendSuccess(res, result, message, 201);
 }

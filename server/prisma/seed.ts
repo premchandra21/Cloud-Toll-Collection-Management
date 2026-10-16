@@ -15,6 +15,7 @@ const DEMO_USERS: { name: string; email: string; password: string; role: Role }[
   { name: "Operator Two", email: "operator2@toll.test", password: "Operator@123", role: "OPERATOR" },
   { name: "Asha Driver", email: "asha@toll.test", password: "Driver@123", role: "USER" },
   { name: "Ravi Driver", email: "ravi@toll.test", password: "Driver@123", role: "USER" },
+  { name: "Meera Driver", email: "meera@toll.test", password: "Driver@123", role: "USER" },
 ];
 
 const PLAZAS = [
@@ -39,12 +40,19 @@ const VEHICLES: { ownerEmail: string; vehicleNumber: string; vehicleType: Vehicl
   { ownerEmail: "asha@toll.test", vehicleNumber: "OD02AB1234", vehicleType: "CAR", rfidTag: "RFID-0001" },
   { ownerEmail: "asha@toll.test", vehicleNumber: "OD02CD5678", vehicleType: "TRUCK", rfidTag: "RFID-0002" },
   { ownerEmail: "ravi@toll.test", vehicleNumber: "OD05EF9012", vehicleType: "BUS", rfidTag: "RFID-0003" },
+  { ownerEmail: "meera@toll.test", vehicleNumber: "OD07GH3456", vehicleType: "CAR", rfidTag: "RFID-0004" },
 ];
 
-// Opening balances. Asha has plenty; Ravi is low, so a bus toll (160) fails.
 const OPENING_BALANCE: Record<string, string> = {
   "asha@toll.test": "500.00",
   "ravi@toll.test": "50.00",
+  "meera@toll.test": "30.00",
+};
+
+// Pay-later (toll on credit) limits. Only Meera has the facility, so the existing demos and evidence
+// scripts (Asha, Ravi) behave exactly as before. A wallet with 0 / 0 has no pay-later.
+const CREDIT_LIMITS: Record<string, { creditLimit: string; monthlyCreditLimit: string }> = {
+  "meera@toll.test": { creditLimit: "300.00", monthlyCreditLimit: "600.00" },
 };
 
 async function main() {
@@ -114,7 +122,9 @@ async function main() {
     const existing = await prisma.wallet.findUnique({ where: { userId } });
     if (existing) continue;
     await prisma.$transaction(async (tx) => {
-      const wallet = await tx.wallet.create({ data: { userId, balance } });
+      const wallet = await tx.wallet.create({
+        data: { userId, balance, ...(CREDIT_LIMITS[email] ?? {}) },
+      });
       await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,

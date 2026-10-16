@@ -74,12 +74,16 @@ Skipping deployment for now will do it after developing the app.
 - [x] Slice 8: Dashboard aggregations (raw SQL) + dashboard pages
 - [x] Slice 8b, operator-to-plaza scoping via the operator_plazas table.
 - [x] Slice 9: Evidence scripts (`concurrency-test.ts`, `simulate-traffic.ts`, reconciliation query)
-- [ ] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
+- [x] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
 
 ## Current slice
-Deployment left
+Making the feature of allow drivers to pass through toll without paying if low balance on credit.
+Slice 1 (this message): database, toll processing, notifications, reconciliation guard, demo data, tests.
+Slice 2: pay-dues endpoint, wallet summary with credit info, admin endpoint to set limits, dashboard "outstanding credit", overdue reminders.
+Slice 3: all frontend changes.
 
 ## Next action
+slice 2
 
 ## Known gotchas
 - Free-tier hosts sleep when idle; warm the API before any demo.

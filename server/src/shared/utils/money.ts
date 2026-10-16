@@ -10,3 +10,14 @@ export interface DecimalLike {
 export function money(value: DecimalLike | null | undefined): string {
   return value ? value.toFixed(2) : "0.00";
 }
+
+
+// Whole paise ("160.00" -> 16000) so limits can be compared exactly. Only for comparing, never for storing.
+export function toCents(value: string | DecimalLike): number {
+  const text = typeof value === "string" ? value : value.toFixed(2);
+  return Math.round(Number(text) * 100);
+}
+
+export function fromCents(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
