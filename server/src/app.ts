@@ -14,6 +14,7 @@ import { notificationRouter } from "./modules/notifications/notification.routes.
 import { userRouter } from "./modules/users/user.routes.js";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes.js";
 import { reportRouter } from "./modules/reports/report.routes.js";
+import { creditRouter } from "./modules/credit/credit.routes.js";
 
 export const app = express();
 
@@ -40,6 +41,7 @@ app.use("/api/v1/notifications", notificationRouter);
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api/v1/reports", reportRouter);
+app.use("/api/v1/credit", creditRouter);
 
 // Must stay last
 app.use(notFound);

@@ -16,6 +16,7 @@ console.log(`  Successful tolls:                ${r.tolls.successTolls}`);
 console.log(`  Tolls missing a matching debit:  ${r.tolls.withoutMatchingDebit}`);
 console.log(`  Debits with no successful toll:  ${r.tolls.debitsWithoutSuccessfulToll}`);
 console.log(`  Tolls debited more than once:    ${r.tolls.duplicateDebits}`);
+console.log(`  Unpaid pay-later tolls debited:  ${r.tolls.openCreditWithDebit}`);
 if (r.wallets.mismatches.length > 0) console.log("\nMismatches:", r.wallets.mismatches);
 console.log(`\n${r.ok ? "RESULT: PASS (0 mismatches)" : "RESULT: FAIL"}\n`);
 if (!r.ok) fail("The ledger does not reconcile.");

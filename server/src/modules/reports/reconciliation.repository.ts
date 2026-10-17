@@ -16,6 +16,7 @@ export interface TollLedgerCounts {
   withoutMatchingDebit: number; // SUCCESS toll with no TOLL_DEBIT ledger row of exactly -amount
   debitsWithoutSuccessfulToll: number; // TOLL_DEBIT ledger row that points at no SUCCESS toll
   duplicateDebits: number; // a toll that was debited more than once
+  openCreditWithDebit: number; // an UNPAID pay-later toll that already has a debit (it would be charged twice)
 }
 
 const MISMATCH_LIMIT = 50;
@@ -83,7 +84,13 @@ export const reconciliationRepository = {
           WHERE "type" = 'TOLL_DEBIT'
           GROUP BY "referenceId"
           HAVING COUNT(*) > 1
-        ) d)::int AS "duplicateDebits"
+          ) d)::int AS "duplicateDebits",
+        (SELECT COUNT(*) FROM "toll_transactions" t
+          WHERE t."onCredit" = true AND t."settledAt" IS NULL
+            AND EXISTS (
+              SELECT 1 FROM "wallet_transactions" l
+              WHERE l."type" = 'TOLL_DEBIT' AND l."referenceId" = t."id"::text
+            ))::int AS "openCreditWithDebit"
     `;
     return rows[0];
   },

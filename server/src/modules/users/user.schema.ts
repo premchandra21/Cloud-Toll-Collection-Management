@@ -21,8 +21,31 @@ export const setUserPlazasSchema = z.object({
     .transform((ids) => [...new Set(ids)]),
 });
 
+export const MAX_CREDIT_LIMIT = 100000;
+
+// "300", 300.5 or "300.50" as a string so no float reaches the database.
+const creditAmount = z
+  .union([z.string(), z.number()])
+  .transform((v) => String(v).trim())
+  .pipe(
+    z
+      .string()
+      .regex(/^\d{1,6}(\.\d{1,2})?$/, "Enter a valid amount with at most 2 decimal places")
+      .refine((v) => Number(v) <= MAX_CREDIT_LIMIT, { message: `Limit cannot exceed ${MAX_CREDIT_LIMIT}` }),
+  );
+
+// Pay-later is ON only when BOTH limits are above 0 and OFF when both are 0.
+// One of them being 0 would silently mean "off", so it is rejected instead.
+export const setUserCreditSchema = z
+  .object({ creditLimit: creditAmount, monthlyCreditLimit: creditAmount })
+  .refine((v) => (Number(v.creditLimit) === 0) === (Number(v.monthlyCreditLimit) === 0), {
+    message: "Set both limits above 0 to turn pay-later on, or both to 0 to turn it off",
+    path: ["monthlyCreditLimit"],
+  });
+
 export const userIdParamsSchema = z.object({ id: z.uuid() });
 
 export type UserListQuery = z.infer<typeof userListQuerySchema>;
 export type SetUserPlazasInput = z.infer<typeof setUserPlazasSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type SetUserCreditInput = z.infer<typeof setUserCreditSchema>;

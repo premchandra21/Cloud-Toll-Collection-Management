@@ -45,7 +45,8 @@ export const reportService = {
     const tollsClean =
       tolls.withoutMatchingDebit === 0 &&
       tolls.debitsWithoutSuccessfulToll === 0 &&
-      tolls.duplicateDebits === 0;
+      tolls.duplicateDebits === 0 &&
+      tolls.openCreditWithDebit === 0;
 
     return {
       checkedAt: new Date().toISOString(),

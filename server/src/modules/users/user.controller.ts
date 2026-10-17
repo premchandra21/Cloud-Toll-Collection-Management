@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { sendSuccess } from "../../shared/responses/response.js";
 import {
+  setUserCreditSchema,
   setUserPlazasSchema,
   updateUserSchema,
   userIdParamsSchema,
@@ -26,4 +27,11 @@ export async function setUserPlazas(req: Request, res: Response) {
   const input = setUserPlazasSchema.parse(req.body ?? {});
   const user = await userService.setPlazas(id, input, req.user!);
   sendSuccess(res, { user }, "Operator plazas updated");
+}
+
+export async function setUserCredit(req: Request, res: Response) {
+  const { id } = userIdParamsSchema.parse(req.params);
+  const input = setUserCreditSchema.parse(req.body ?? {});
+  const user = await userService.setCredit(id, input, req.user!);
+  sendSuccess(res, { user }, "Pay-later limits updated");
 }

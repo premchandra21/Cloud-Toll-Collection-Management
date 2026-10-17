@@ -1,6 +1,7 @@
 import { prisma } from "../../config/database.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { fromCents, toCents } from "../../shared/utils/money.js";
+import { getCreditUsage } from "../credit/credit.usage.js";
 
 // Shape shared by every toll-transaction read (the list/detail endpoints in Slice 7 can reuse it).
 const txSelect = {
@@ -59,28 +60,10 @@ async function decideCredit(
   // Facility switched off after the caller's earlier read.
   if (limit <= 0 || monthly <= 0) return { allowed: false, reason: "INSUFFICIENT_BALANCE" };
 
-  // One aggregate over this driver's credit tolls (all their vehicles), computed inside PostgreSQL.
-  //  outstanding   = credit tolls not yet settled
-  //  overdue       = unsettled credit tolls past their due date
-  //  usedThisMonth = credit taken since the start of the calendar month in `timeZone`
-  // "processedAt"/"creditDueAt" are timestamps WITHOUT time zone holding UTC, hence AT TIME ZONE 'UTC'.
-  const rows = await tx.$queryRaw<{ outstanding: string; overdue: number; usedThisMonth: string }[]>`
-    SELECT
-      COALESCE(SUM(t."amount") FILTER (WHERE t."settledAt" IS NULL), 0)::numeric(14,2)::text AS "outstanding",
-      (COUNT(*) FILTER (
-        WHERE t."settledAt" IS NULL AND t."creditDueAt" < (now() AT TIME ZONE 'UTC')
-      ))::int AS "overdue",
-      COALESCE(SUM(t."amount") FILTER (
-        WHERE t."processedAt" >= ((date_trunc('month', now() AT TIME ZONE ${timeZone}::text) AT TIME ZONE ${timeZone}::text) AT TIME ZONE 'UTC')
-      ), 0)::numeric(14,2)::text AS "usedThisMonth"
-    FROM "toll_transactions" t
-    JOIN "vehicles" v ON v."id" = t."vehicleId"
-    WHERE v."userId" = ${wallet.userId}::uuid AND t."onCredit" = true
-  `;
-  const { outstanding, overdue, usedThisMonth } = rows[0]!;
+  const { outstanding, overdueCount, usedThisMonth } = await getCreditUsage(tx, wallet.userId, timeZone);
   const need = toCents(amount);
 
-  if (overdue > 0) return { allowed: false, reason: "CREDIT_OVERDUE" };
+  if (overdueCount > 0) return { allowed: false, reason: "CREDIT_OVERDUE" };
   if (toCents(outstanding) + need > limit) return { allowed: false, reason: "CREDIT_LIMIT_EXCEEDED" };
   if (toCents(usedThisMonth) + need > monthly) {
     return { allowed: false, reason: "CREDIT_MONTHLY_LIMIT_EXCEEDED" };
@@ -91,13 +74,13 @@ async function decideCredit(
 interface NotificationInput {
   userId: string;
   type:
-    | "LOW_BALANCE"
-    | "TOLL_SUCCESS"
-    | "TOLL_FAILED"
-    | "CREDIT_USED"
-    | "CREDIT_DUE_SOON"
-    | "CREDIT_OVERDUE"
-    | "CREDIT_SETTLED";
+  | "LOW_BALANCE"
+  | "TOLL_SUCCESS"
+  | "TOLL_FAILED"
+  | "CREDIT_USED"
+  | "CREDIT_DUE_SOON"
+  | "CREDIT_OVERDUE"
+  | "CREDIT_SETTLED";
   title: string;
   message: string;
 }

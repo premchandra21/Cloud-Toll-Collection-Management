@@ -151,6 +151,6 @@ export async function reconciliation(adminToken: string) {
   return r.json.data as {
     ok: boolean;
     wallets: { checked: number; mismatched: number; mismatches: unknown[] };
-    tolls: { successTolls: number; withoutMatchingDebit: number; debitsWithoutSuccessfulToll: number; duplicateDebits: number };
+    tolls: { successTolls: number; withoutMatchingDebit: number; debitsWithoutSuccessfulToll: number; duplicateDebits: number; openCreditWithDebit: number };
   };
 }

@@ -19,3 +19,13 @@ export async function listTransactions(req: Request, res: Response) {
   const { items, meta } = await walletService.listLedger(req.user!.id, query);
   sendSuccess(res, { transactions: items }, "Wallet transactions fetched", 200, meta);
 }
+
+export async function listCreditDues(req: Request, res: Response) {
+  const result = await walletService.listDues(req.user!.id);
+  sendSuccess(res, result, "Pay-later dues fetched");
+}
+
+export async function settleCredit(req: Request, res: Response) {
+  const result = await walletService.settleCredit(req.user!.id);
+  sendSuccess(res, result, "Pay-later dues paid", 201);
+}

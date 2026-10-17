@@ -9,7 +9,7 @@ const userSelect = {
   role: true,
   isActive: true,
   createdAt: true,
-  wallet: { select: { balance: true } },
+  wallet: { select: { balance: true, creditLimit: true, monthlyCreditLimit: true } },
   _count: { select: { vehicles: true } },
   // Only operators have rows here (the plazas they may work at)
   operatorPlazas: {
@@ -25,11 +25,11 @@ export const userRepository = {
       ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
       ...(query.q
         ? {
-            OR: [
-              { name: { contains: query.q, mode: "insensitive" as const } },
-              { email: { contains: query.q, mode: "insensitive" as const } },
-            ],
-          }
+          OR: [
+            { name: { contains: query.q, mode: "insensitive" as const } },
+            { email: { contains: query.q, mode: "insensitive" as const } },
+          ],
+        }
         : {}),
     };
 
@@ -61,6 +61,26 @@ export const userRepository = {
       prisma.operatorPlaza.deleteMany({ where: { userId } }),
       prisma.operatorPlaza.createMany({ data: plazaIds.map((plazaId) => ({ userId, plazaId })) }),
     ]);
+    return prisma.user.findUniqueOrThrow({ where: { id: userId }, select: userSelect });
+  },
+
+  // Unpaid pay-later amount per driver, for the given users only. One grouped query, aggregated in SQL.
+  async creditOutstanding(userIds: string[]) {
+    const map = new Map<string, string>();
+    if (userIds.length === 0) return map;
+    const rows = await prisma.$queryRaw<{ userId: string; outstanding: string }[]>`
+      SELECT v."userId"::text AS "userId", SUM(t."amount")::numeric(14,2)::text AS "outstanding"
+      FROM "toll_transactions" t
+      JOIN "vehicles" v ON v."id" = t."vehicleId"
+      WHERE t."onCredit" = true AND t."settledAt" IS NULL AND v."userId" = ANY(${userIds}::uuid[])
+      GROUP BY v."userId"
+    `;
+    for (const r of rows) map.set(r.userId, r.outstanding);
+    return map;
+  },
+
+  async setCreditLimits(userId: string, creditLimit: string, monthlyCreditLimit: string) {
+    await prisma.wallet.update({ where: { userId }, data: { creditLimit, monthlyCreditLimit } });
     return prisma.user.findUniqueOrThrow({ where: { id: userId }, select: userSelect });
   },
 

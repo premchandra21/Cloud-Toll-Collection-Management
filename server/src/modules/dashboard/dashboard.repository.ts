@@ -38,12 +38,19 @@ export interface Counts {
 
 export interface TotalsRow extends Counts {
   uncollected: string; // sum of FAILED toll amounts (tolls that could not be collected)
+  // Pay-later: revenue is what was EARNED. collected = money actually received (paid at the toll, or a
+  // pay-later toll that was settled). creditOutstanding = pay-later tolls still unpaid. creditOverdue =
+  // the part of that past its due date. revenue = collected + creditOutstanding.
+  collected: string;
+  creditOutstanding: string;
+  creditOverdue: string;
 }
 
 export interface PlazaRow extends Counts {
   id: string;
   name: string;
   code: string;
+  creditOutstanding: string; // pay-later amount this plaza is still waiting for
 }
 
 export interface VehicleTypeRow extends Counts {
@@ -62,7 +69,16 @@ export const dashboardRepository = {
         COUNT(*) FILTER (WHERE t."status" = 'SUCCESS')::int AS "success",
         COUNT(*) FILTER (WHERE t."status" = 'FAILED')::int AS "failed",
         COALESCE(SUM(t."amount") FILTER (WHERE t."status" = 'SUCCESS'), 0)::numeric(14,2)::text AS "revenue",
-        COALESCE(SUM(t."amount") FILTER (WHERE t."status" = 'FAILED'), 0)::numeric(14,2)::text AS "uncollected"
+                COALESCE(SUM(t."amount") FILTER (WHERE t."status" = 'FAILED'), 0)::numeric(14,2)::text AS "uncollected",
+        COALESCE(SUM(t."amount") FILTER (
+          WHERE t."status" = 'SUCCESS' AND NOT (t."onCredit" = true AND t."settledAt" IS NULL)
+        ), 0)::numeric(14,2)::text AS "collected",
+        COALESCE(SUM(t."amount") FILTER (
+          WHERE t."onCredit" = true AND t."settledAt" IS NULL
+        ), 0)::numeric(14,2)::text AS "creditOutstanding",
+        COALESCE(SUM(t."amount") FILTER (
+          WHERE t."onCredit" = true AND t."settledAt" IS NULL AND t."creditDueAt" < (now() AT TIME ZONE 'UTC')
+        ), 0)::numeric(14,2)::text AS "creditOverdue"
       FROM "toll_transactions" t
       WHERE (${from}::timestamptz IS NULL OR t."processedAt" >= (${from}::timestamptz AT TIME ZONE 'UTC'))
         AND (${to}::timestamptz IS NULL OR t."processedAt" < (${to}::timestamptz AT TIME ZONE 'UTC'))
@@ -80,7 +96,10 @@ export const dashboardRepository = {
         COUNT(t."id")::int AS "transactions",
         COUNT(t."id") FILTER (WHERE t."status" = 'SUCCESS')::int AS "success",
         COUNT(t."id") FILTER (WHERE t."status" = 'FAILED')::int AS "failed",
-        COALESCE(SUM(t."amount") FILTER (WHERE t."status" = 'SUCCESS'), 0)::numeric(14,2)::text AS "revenue"
+        COALESCE(SUM(t."amount") FILTER (WHERE t."status" = 'SUCCESS'), 0)::numeric(14,2)::text AS "revenue",
+        COALESCE(SUM(t."amount") FILTER (
+          WHERE t."onCredit" = true AND t."settledAt" IS NULL
+        ), 0)::numeric(14,2)::text AS "creditOutstanding"
       FROM "toll_plazas" p
       LEFT JOIN "toll_transactions" t
         ON t."plazaId" = p."id"

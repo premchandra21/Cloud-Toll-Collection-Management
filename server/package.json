@@ -13,7 +13,8 @@
     "evidence:concurrency": "tsx scripts/concurrency-test.ts",
     "evidence:traffic": "tsx scripts/simulate-traffic.ts",
     "evidence:reconcile": "tsx scripts/reconcile.ts",
-    "test": "tsx --test --test-reporter=spec src/modules/toll/toll.test.ts src/modules/toll/plaza-scope.test.ts src/modules/reports/reconciliation.test.ts src/modules/toll/credit.test.ts"
+    "credit:remind": "tsx scripts/credit-remind.ts",
+    "test": "tsx --test --test-reporter=spec src/modules/toll/toll.test.ts src/modules/credit/credit-settlement.test.ts src/modules/toll/plaza-scope.test.ts src/modules/reports/reconciliation.test.ts src/modules/toll/credit.test.ts"
   },
   "keywords": [],
   "author": "",

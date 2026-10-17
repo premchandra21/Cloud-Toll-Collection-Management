@@ -24,6 +24,8 @@ const schema = z.object({
     .string()
     .default("Asia/Kolkata")
     .refine(isValidTimeZone, "CREDIT_TIMEZONE must be a valid IANA time zone, e.g. Asia/Kolkata"),
+  // Pay-later: the reminder job warns a driver when dues fall due within this many days.
+  CREDIT_REMIND_DAYS: z.coerce.number().int().min(1).max(30).default(2),
 });
 
 const parsed = schema.safeParse(process.env);
