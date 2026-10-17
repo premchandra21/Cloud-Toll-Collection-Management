@@ -15,5 +15,13 @@ export interface AdminUser {
   createdAt: string
   vehicleCount: number
   walletBalance: string | null // drivers only
+  credit: UserCredit | null // drivers only
   plazas: UserPlaza[] // operators only: the plazas they may work at (empty for everyone else)
+}
+
+export interface UserCredit {
+  enabled: boolean
+  limit: string
+  monthlyLimit: string
+  outstanding: string
 }

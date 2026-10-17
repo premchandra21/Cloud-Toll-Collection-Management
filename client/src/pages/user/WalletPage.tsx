@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import Pagination from '../../components/ui/Pagination'
+import CreditPanel from '../../features/wallet/CreditPanel'
+import DuesList from '../../features/wallet/DuesList'
 import { useLedger, useTopUp, useWallet } from '../../hooks/useWallet'
+import type { SettleResult } from '../../types/wallet'
 import { formatDateTime, formatMoney } from '../../utils/format'
 import { getErrorMessage } from '../../utils/getErrorMessage'
+import { toCents } from '../../utils/money'
 
 const QUICK_AMOUNTS = ['100', '500', '1000']
 
@@ -18,6 +22,7 @@ export default function WalletPage() {
   const topUp = useTopUp()
   const [serverError, setServerError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [paid, setPaid] = useState<SettleResult | null>(null)
 
   const {
     register,
@@ -30,6 +35,7 @@ export default function WalletPage() {
   const onSubmit = async ({ amount }: TopUpForm) => {
     setServerError(null)
     setSuccess(null)
+    setPaid(null)
     try {
       const result = await topUp.mutateAsync(amount.trim())
       setSuccess(`Top-up successful. New balance: ${formatMoney(result.balance)}`)
@@ -51,8 +57,10 @@ export default function WalletPage() {
           <>
             {wallet.data.lowBalance && (
               <div className="alert alert--warn">
-                Low balance: you are at or below {formatMoney(wallet.data.lowBalanceThreshold)}. Top
-                up so your next toll does not fail.
+                Low balance: you are at or below {formatMoney(wallet.data.lowBalanceThreshold)}.{' '}
+                {wallet.data.credit.enabled && toCents(wallet.data.credit.available) > 0
+                  ? `Your next toll can still pass on credit (${formatMoney(wallet.data.credit.available)} available), but you will owe it later. Top up to pay at the gate.`
+                  : 'Top up so your next toll does not fail.'}
               </div>
             )}
             <p className="balance">{formatMoney(wallet.data.balance)}</p>
@@ -60,11 +68,41 @@ export default function WalletPage() {
               Total topped up {formatMoney(wallet.data.totalToppedUp)} · Spent on tolls{' '}
               {formatMoney(wallet.data.totalSpentOnTolls)}
             </p>
+            {!wallet.data.credit.enabled && toCents(wallet.data.credit.outstanding) === 0 && (
+              <p className="muted note">
+                Pay later is not enabled on your account. Ask an administrator if you would like it.
+              </p>
+            )}
           </>
         )}
       </section>
 
-      <section className="card section-gap">
+      {paid && (
+        <div className="alert alert--ok section-gap">
+          Paid {formatMoney(paid.settledAmount)} for {paid.settledCount} toll
+          {paid.settledCount === 1 ? '' : 's'}. New balance: {formatMoney(paid.balance)}.{' '}
+          {paid.remaining.count > 0
+            ? `${formatMoney(paid.remaining.amount)} (${paid.remaining.count} toll${paid.remaining.count === 1 ? '' : 's'}) is still due.`
+            : 'All your pay-later dues are cleared.'}
+        </div>
+      )}
+
+      {wallet.data && (wallet.data.credit.enabled || toCents(wallet.data.credit.outstanding) > 0) && (
+        <CreditPanel credit={wallet.data.credit} />
+      )}
+
+      {wallet.data && (
+        <DuesList
+          balance={wallet.data.balance}
+          onPaid={(result) => {
+            setPaid(result)
+            setSuccess(null)
+            setPage(1)
+          }}
+        />
+      )}
+
+      <section id="top-up" className="card section-gap">
         <h3>Top up (simulated)</h3>
         <p className="muted">No real payment is taken. This simulates a payment gateway.</p>
 

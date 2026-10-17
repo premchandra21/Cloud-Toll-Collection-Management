@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import BarList from '../features/dashboard/BarList'
 import DailyChart from '../features/dashboard/DailyChart'
+import RevenueSplit from '../features/dashboard/RevenueSplit'
 import { useAuth } from '../features/auth/useAuth'
 import { useDashboardSummary } from '../hooks/useDashboard'
 import { VEHICLE_TYPE_LABELS } from '../types/vehicle'
@@ -10,6 +11,7 @@ import { PRESET_LABELS, rangeForPreset } from '../utils/dashboardRange'
 import type { RangePreset } from '../utils/dashboardRange'
 import { formatMoney } from '../utils/format'
 import { getErrorMessage } from '../utils/getErrorMessage'
+import { toCents } from '../utils/money'
 import { transactionsPath } from '../utils/transactionPaths'
 
 const PRESETS = Object.keys(PRESET_LABELS) as Exclude<RangePreset, 'custom'>[]
@@ -96,11 +98,46 @@ export default function DashboardPage() {
 
       {data && totals && (
         <>
+          {toCents(totals.creditOverdue) > 0 && (
+            <div className="alert alert--error section-gap">
+              {formatMoney(totals.creditOverdue)} of pay-later tolls is overdue. Drivers with overdue dues
+              cannot pass on credit until they pay.
+            </div>
+          )}
+
           <section className="kpi-grid section-gap">
             <article className="card">
-              <h3>Revenue collected</h3>
+              <h3>Revenue earned</h3>
               <p className="stat">{formatMoney(totals.revenue)}</p>
+              <p className="muted note">Collected + owed</p>
             </article>
+            <article className="card">
+              <h3>Collected</h3>
+              <p className="stat pos">{formatMoney(totals.collected)}</p>
+              <p className="muted note">Money actually received</p>
+            </article>
+            <article className="card">
+              <h3>Owed</h3>
+              <p className="stat credit">{formatMoney(totals.creditOutstanding)}</p>
+              <p className="muted note">Pay-later, not yet paid</p>
+            </article>
+            <article className="card">
+              <h3>Overdue</h3>
+              <p className="stat neg">{formatMoney(totals.creditOverdue)}</p>
+              <p className="muted note">Owed and past its due date</p>
+            </article>
+          </section>
+
+          <section className="card section-gap">
+            <h3>Revenue split</h3>
+            <RevenueSplit
+              collected={totals.collected}
+              owed={totals.creditOutstanding}
+              overdue={totals.creditOverdue}
+            />
+          </section>
+
+          <section className="kpi-grid section-gap">
             <article className="card">
               <h3>Transactions</h3>
               <p className="stat">{totals.transactions}</p>
@@ -146,8 +183,9 @@ export default function DashboardPage() {
                 items={data.byPlaza.map((p) => ({
                   key: p.id,
                   label: `${p.name} (${p.code})`,
-                  detail: `${p.transactions} tolls · ${p.success} paid · ${p.failed} failed`,
+                  detail: `${p.transactions} tolls · ${p.success} passed · ${p.failed} failed`,
                   revenue: p.revenue,
+                  owed: p.creditOutstanding,
                 }))}
               />
             </article>
@@ -158,7 +196,7 @@ export default function DashboardPage() {
                 items={data.byVehicleType.map((v) => ({
                   key: v.vehicleType,
                   label: VEHICLE_TYPE_LABELS[v.vehicleType],
-                  detail: `${v.transactions} tolls · ${v.success} paid · ${v.failed} failed`,
+                  detail: `${v.transactions} tolls · ${v.success} passed · ${v.failed} failed`,
                   revenue: v.revenue,
                 }))}
               />
@@ -166,7 +204,9 @@ export default function DashboardPage() {
           </section>
 
           <p className="muted note section-gap">
-            Days are grouped in your time zone ({data.range.timeZone}). Revenue counts successful tolls only.
+            Days are grouped in your time zone ({data.range.timeZone}). Revenue counts successful tolls only,
+            including pay-later tolls that are still unpaid (shown in amber). Owed and overdue are the
+            pay-later tolls from this period that have not been paid as of now.
           </p>
         </>
       )}

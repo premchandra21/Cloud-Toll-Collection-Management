@@ -59,6 +59,14 @@ Rejected events (VEHICLE_NOT_FOUND, VEHICLE_INACTIVE, PLAZA_INACTIVE, TOLL_RATE_
 - Revenue counts SUCCESS tolls only. uncollected is the sum of FAILED toll amounts.
 - The by-vehicle-type breakdown groups by the applied rate’s vehicleType, so editing a vehicle’s type later never rewrites history. Plazas and vehicle types with no traffic still appear with zeros.
 - GET /dashboard/summary and GET /reports/revenue?groupBy=day|plaza|vehicleType are OPERATOR/ADMIN. One shared DashboardPage serves /admin and /operator/dashboard, and refetches every 15 seconds. The reconciliation endpoint is deferred to Slice 9.
+- Pay-later frontend (slice 3 of the credit feature): the wallet summary now carries `credit` (limits, outstanding, usedThisMonth, available, overdue, nextDueAt, dueDays). The wallet page shows a credit panel, a dues list and a "Pay dues" button. The coverage preview mirrors the server (whole dues, most urgent first), but the server decides what is really paid. The button is disabled when the balance does not cover the oldest due.
+- The simulator marks a credit pass as "Passed on credit, due by <date>" (blue, not green). Credit passes are SUCCESS toll rows with `onCredit`, so the UI treats "passed" and "collected" as different things. The dashboard says "passed" instead of "paid".
+- Dashboard: Revenue earned = Collected + Owed. Overdue is part of Owed. Owed and overdue are evaluated as of now, for tolls inside the selected date range.
+- FAILED reasons shown in the UI: INSUFFICIENT_BALANCE, CREDIT_OVERDUE, CREDIT_LIMIT_EXCEEDED, CREDIT_MONTHLY_LIMIT_EXCEEDED (labels in `utils/failureReasons.ts`). Unknown codes are shown as sent.
+- Transaction list/detail DTOs now include `credit: { dueAt, settled, settledAt } | null` so every page can show Paid / Due / Overdue badges.
+- Admin edits pay-later limits in a modal (native `<dialog>`), with an on/off switch. Off sends 0/0; on needs both limits above 0 (same rule as the API).
+- Wallet summary and dues are polled every 20 s so a toll from another browser appears without a refresh.
+- Money maths on the client is integer cents (`utils/money.ts`), never floats.
 
 ## Status
 - [x] Slice 0: Scaffold client, server, Prisma 7, local Postgres, `/api/v1/health` returning db connected
@@ -75,15 +83,34 @@ Skipping deployment for now will do it after developing the app.
 - [x] Slice 8b, operator-to-plaza scoping via the operator_plazas table.
 - [x] Slice 9: Evidence scripts (`concurrency-test.ts`, `simulate-traffic.ts`, reconciliation query)
 - [x] Slice 10: Demo hardening (README, demo credentials, warm-up check, rehearsed demo path) + report/presentation
+- [x] Pay-later feature, slice 1 (DB, toll flow, notifications, reconciliation guard, tests)
+- [x] Pay-later feature, slice 2 (pay-dues endpoint, wallet credit summary, admin limits, dashboard split, reminders)
+- [x] Pay-later feature, slice 3 (frontend: wallet, simulator, notifications, admin users, dashboard, transaction badges)
+- [ ] UI revamp (plan below)
 
 ## Current slice
-Making the feature of allow drivers to pass through toll without paying if low balance on credit.
-Slice 1 (this message): database, toll processing, notifications, reconciliation guard, demo data, tests.
-Slice 2: pay-dues endpoint, wallet summary with credit info, admin endpoint to set limits, dashboard "outstanding credit", overdue reminders.
-Slice 3: all frontend changes.
+Pay-later feature is complete (slices 1-3). Now: UI revamp (see the plan below). It must not change any behaviour.
 
 ## Next action
-slice 2
+UI-0: create the `ui-revamp` branch, install Tailwind v4 and shadcn/ui.
+
+## UI revamp plan
+Why: the app works but looks plain (one hand-written CSS file, emoji icons, inline alerts).
+Choice: Tailwind CSS v4 + shadcn/ui (Radix primitives) + lucide-react icons + sonner toasts + Recharts for charts.
+- Fits the stack: React 19 + Vite + react-hook-form. shadcn's components are copied into `src/components/ui`, so we own the code (no heavy runtime library).
+- Gives accessible dialogs, dropdowns, tables, tabs and selects without hand-building them.
+- Rejected: MUI/Mantine (heavier, harder to restyle, locks the theme); more hand-written CSS (what we have now).
+- Prerequisites: Node 20.19+ or 22.12+ (Vite requirement). Tailwind v4 has no tailwind.config file; config lives in `index.css` (`@import "tailwindcss"`, `@theme`) and the `@tailwindcss/vite` plugin.
+- Rule: no behaviour changes. Each step is one commit and must pass `npm run build` and `npm run lint`, and the demo path (README) must still work.
+
+Steps
+- [ ] UI-0 Setup (branch `ui-revamp`): install `tailwindcss @tailwindcss/vite`, add the plugin and the `@/` alias (vite.config.ts and tsconfig.app.json), run `npx shadcn@latest init`, add base components (button, card, badge, input, label, select, table, dialog, alert, progress, skeleton, tabs, dropdown-menu, sonner). Note: Tailwind's preflight resets styles, so unmigrated pages look different until UI-2/UI-4. Keep the old `index.css` imported for now.
+- [ ] UI-1 Design tokens: keep teal as primary; semantic badge colours (success = collected, warning = due soon / limit reached, danger = overdue / failed, sky = pay-later); Inter font; spacing and radius scale; decide light-only vs dark mode.
+- [ ] UI-2 Shell: replace AppLayout with a sidebar (role-based links) and a top bar (notification bell, user menu with logout). Mobile: sheet menu. Restyle PublicLayout, Home, Login, Register.
+- [ ] UI-3 Shared components: StatusBadge (one component for SUCCESS / FAILED / Pay later / Overdue), MoneyText, PageHeader, EmptyState, Spinner/Skeleton. Replace my `Modal` with shadcn Dialog and `Meter` with Progress. Replace inline success alerts with toasts.
+- [ ] UI-4 Pages, by demo value: Wallet (hero balance card + credit panel + dues) -> Toll simulator (large result panel) -> Dashboards (KPI cards, Recharts bar/area charts, revenue split) -> Transactions / Transaction detail -> Admin Users and Plazas -> Vehicles, Notifications.
+- [ ] UI-5 Polish: loading skeletons, empty states, check at 375 px width, keyboard focus and contrast, remove dead CSS from `index.css`, take screenshots for the report.
+Risks: (1) the half-migrated look, so do it on a branch and migrate the shell first; (2) chart rewrite is the biggest single task, so it can be postponed or left as the current CSS bars; (3) do not change API shapes during the revamp.
 
 ## Known gotchas
 - Free-tier hosts sleep when idle; warm the API before any demo.

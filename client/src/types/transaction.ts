@@ -12,6 +12,7 @@ export interface TollTransaction {
   vehicle: { id: string; vehicleNumber: string; vehicleType: VehicleType; rfidTag: string }
   plaza: { id: string; name: string; code: string }
   owner?: { id: string; name: string; email: string } // staff only
+  credit?: { dueAt: string | null; settled: boolean; settledAt: string | null } | null
 }
 
 export interface TollTransactionDetail extends TollTransaction {

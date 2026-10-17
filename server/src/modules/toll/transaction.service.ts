@@ -33,6 +33,10 @@ function toDto(t: TxRow, actor: AuthUser) {
     amount: money(t.amount),
     failureReason: t.failureReason,
     processedAt: t.processedAt,
+    // Pay-later: the vehicle passed without a wallet debit. null for an ordinary toll.
+    credit: t.onCredit
+      ? { dueAt: t.creditDueAt, settled: t.settledAt !== null, settledAt: t.settledAt }
+      : null,
     vehicle: {
       id: t.vehicle.id,
       vehicleNumber: t.vehicle.vehicleNumber,

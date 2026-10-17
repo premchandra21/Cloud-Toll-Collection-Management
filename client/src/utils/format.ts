@@ -9,3 +9,17 @@ export function formatMoney(value: string): string {
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
 }
+
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-IN', { dateStyle: 'medium' })
+}
+
+// Clock reads live here (not in components) so rendering stays pure.
+export function isPast(iso: string): boolean {
+  return new Date(iso).getTime() < Date.now()
+}
+
+// Whole days from now until `iso` (rounded up). Negative once the date has passed.
+export function daysUntil(iso: string): number {
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)
+}

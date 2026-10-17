@@ -9,6 +9,9 @@ const txSelect = {
   status: true,
   failureReason: true,
   processedAt: true,
+  onCredit: true,      // add
+  creditDueAt: true,   // add
+  settledAt: true,     // add
   vehicle: {
     select: {
       id: true,

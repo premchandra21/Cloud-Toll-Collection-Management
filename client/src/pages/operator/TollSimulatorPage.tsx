@@ -4,7 +4,8 @@ import { usePlazas } from '../../hooks/usePlazas'
 import { useProcessToll } from '../../hooks/useProcessToll'
 import type { ProcessTollInput, ProcessTollResult } from '../../types/toll'
 import { VEHICLE_TYPE_LABELS } from '../../types/vehicle'
-import { formatDateTime, formatMoney } from '../../utils/format'
+import { failureExplanation, failureLabel } from '../../utils/failureReasons'
+import { formatDate, formatDateTime, formatMoney } from '../../utils/format'
 import { getErrorCode } from '../../utils/getErrorCode'
 import { getErrorMessage } from '../../utils/getErrorMessage'
 import { newIdempotencyKey } from '../../utils/idempotency'
@@ -14,9 +15,10 @@ const DEMO_TAGS = [
   { tag: 'RFID-0001', label: 'RFID-0001 · Car' },
   { tag: 'RFID-0002', label: 'RFID-0002 · Truck' },
   { tag: 'RFID-0003', label: 'RFID-0003 · Bus (low balance)' },
+  { tag: 'RFID-0004', label: 'RFID-0004 · Car (pay later)' },
 ]
 
-type Outcome = 'SUCCESS' | 'FAILED' | 'DUPLICATE' | 'REJECTED'
+type Outcome = 'SUCCESS' | 'CREDIT' | 'FAILED' | 'DUPLICATE' | 'REJECTED'
 
 interface LogRow {
   id: string
@@ -29,6 +31,7 @@ interface LogRow {
 
 const OUTCOME_CLASS: Record<Outcome, string> = {
   SUCCESS: 'status--ok',
+  CREDIT: 'status--credit',
   FAILED: 'status--fail',
   DUPLICATE: 'status--warn',
   REJECTED: 'status--fail',
@@ -61,15 +64,18 @@ export default function TollSimulatorPage() {
     try {
       const res = await processToll.mutateAsync(event)
       setResult(res)
+      const onCredit = res.status === 'SUCCESS' && res.credit !== null
       addLog({
         rfidTag: event.rfidTag,
         plazaCode,
-        outcome: res.idempotentReplay ? 'DUPLICATE' : res.status,
+        outcome: res.idempotentReplay ? 'DUPLICATE' : onCredit ? 'CREDIT' : res.status,
         detail: res.idempotentReplay
           ? 'Existing transaction returned, not charged again'
-          : res.status === 'SUCCESS'
-            ? `${formatMoney(res.amount)} collected`
-            : 'Insufficient balance',
+          : onCredit
+            ? `${formatMoney(res.amount)} on credit${res.credit?.dueAt ? `, due by ${formatDate(res.credit.dueAt)}` : ''}`
+            : res.status === 'SUCCESS'
+              ? `${formatMoney(res.amount)} collected`
+              : failureLabel(res.failureReason),
       })
     } catch (err) {
       const message = getErrorMessage(err)
@@ -110,7 +116,8 @@ export default function TollSimulatorPage() {
         <h2>Process a toll event</h2>
         <p className="muted">
           Simulates a vehicle passing a plaza. The server finds the vehicle by RFID, applies the
-          active rate and debits the owner&apos;s wallet atomically.
+          active rate and debits the owner&apos;s wallet atomically. If the wallet is short and the
+          driver has pay later, the vehicle passes on credit instead and the toll becomes a due.
         </p>
 
         <form onSubmit={onSubmit} className="form form--inline section-gap">
@@ -178,71 +185,7 @@ export default function TollSimulatorPage() {
         </div>
       )}
 
-      {result && (
-        <section
-          className={`card section-gap result ${result.status === 'SUCCESS' ? 'result--ok' : 'result--fail'}`}
-        >
-          <h2>{result.status === 'SUCCESS' ? '✅ Toll collected' : '❌ Toll failed'}</h2>
-
-          {result.idempotentReplay && (
-            <div className="alert alert--warn">
-              Duplicate event: this idempotency key was already processed, so the existing
-              transaction is shown and the wallet was NOT charged again.
-            </div>
-          )}
-          {result.status === 'FAILED' && (
-            <div className="alert alert--error">
-              Insufficient wallet balance. The toll was not collected and nothing was deducted.
-            </div>
-          )}
-          {result.lowBalance && result.status === 'SUCCESS' && (
-            <div className="alert alert--warn">Low balance: the driver has been notified.</div>
-          )}
-
-          <dl className="result__grid">
-            <div>
-              <dt>Vehicle</dt>
-              <dd>
-                {result.vehicle.vehicleNumber} ({VEHICLE_TYPE_LABELS[result.vehicle.vehicleType]})
-              </dd>
-            </div>
-            <div>
-              <dt>RFID tag</dt>
-              <dd>{result.vehicle.rfidTag}</dd>
-            </div>
-            <div>
-              <dt>Plaza</dt>
-              <dd>
-                {result.plaza.name} ({result.plaza.code})
-              </dd>
-            </div>
-            <div>
-              <dt>Toll amount</dt>
-              <dd>{formatMoney(result.amount)}</dd>
-            </div>
-            <div>
-              <dt>Remaining balance</dt>
-              <dd>{formatMoney(result.remainingBalance)}</dd>
-            </div>
-            <div>
-              <dt>Processed at</dt>
-              <dd>{formatDateTime(result.processedAt)}</dd>
-            </div>
-            <div>
-              <dt>Transaction ID</dt>
-              <dd>
-                <code>{result.transactionId}</code>
-              </dd>
-            </div>
-            <div>
-              <dt>Idempotency key</dt>
-              <dd>
-                <code>{result.idempotencyKey}</code>
-              </dd>
-            </div>
-          </dl>
-        </section>
-      )}
+      {result && <ResultCard result={result} />}
 
       {log.length > 0 && (
         <section className="card section-gap">
@@ -278,5 +221,109 @@ export default function TollSimulatorPage() {
         </section>
       )}
     </>
+  )
+}
+
+function ResultCard({ result }: { result: ProcessTollResult }) {
+  const credit = result.status === 'SUCCESS' ? result.credit : null
+  const tone = credit ? 'credit' : result.status === 'SUCCESS' ? 'ok' : 'fail'
+  const title = credit
+    ? '🕒 Passed on credit'
+    : result.status === 'SUCCESS'
+      ? '✅ Toll collected'
+      : '❌ Toll failed'
+
+  return (
+    <section className={`card section-gap result result--${tone}`}>
+      <h2>{title}</h2>
+
+      {result.idempotentReplay && (
+        <div className="alert alert--warn">
+          Duplicate event: this idempotency key was already processed, so the existing transaction is
+          shown and the wallet was NOT charged again.
+        </div>
+      )}
+
+      {credit && (
+        <div className="alert alert--info">
+          {credit.settled ? (
+            <>The driver has since paid this pay-later toll.</>
+          ) : (
+            <>
+              The wallet balance could not cover {formatMoney(result.amount)}, so the vehicle passed on
+              credit and nothing was deducted. The driver must pay{' '}
+              <strong>by {credit.dueAt ? formatDate(credit.dueAt) : 'the due date'}</strong>.
+            </>
+          )}
+        </div>
+      )}
+
+      {result.status === 'FAILED' && (
+        <div className="alert alert--error">
+          <strong>{failureLabel(result.failureReason)}.</strong> {failureExplanation(result.failureReason)}
+        </div>
+      )}
+
+      {result.lowBalance && result.status === 'SUCCESS' && !credit && (
+        <div className="alert alert--warn">Low balance: the driver has been notified.</div>
+      )}
+
+      <dl className="result__grid">
+        <div>
+          <dt>Vehicle</dt>
+          <dd>
+            {result.vehicle.vehicleNumber} ({VEHICLE_TYPE_LABELS[result.vehicle.vehicleType]})
+          </dd>
+        </div>
+        <div>
+          <dt>RFID tag</dt>
+          <dd>{result.vehicle.rfidTag}</dd>
+        </div>
+        <div>
+          <dt>Plaza</dt>
+          <dd>
+            {result.plaza.name} ({result.plaza.code})
+          </dd>
+        </div>
+        <div>
+          <dt>Toll amount</dt>
+          <dd>{formatMoney(result.amount)}</dd>
+        </div>
+        <div>
+          <dt>{credit ? 'Wallet balance (not charged)' : 'Remaining balance'}</dt>
+          <dd>{formatMoney(result.remainingBalance)}</dd>
+        </div>
+        {credit?.dueAt && (
+          <div>
+            <dt>Pay later, due by</dt>
+            <dd>{formatDate(credit.dueAt)}</dd>
+          </div>
+        )}
+        {credit?.outstanding && credit.limit && (
+          <div>
+            <dt>Unpaid credit</dt>
+            <dd>
+              {formatMoney(credit.outstanding)} of {formatMoney(credit.limit)}
+            </dd>
+          </div>
+        )}
+        <div>
+          <dt>Processed at</dt>
+          <dd>{formatDateTime(result.processedAt)}</dd>
+        </div>
+        <div>
+          <dt>Transaction ID</dt>
+          <dd>
+            <code>{result.transactionId}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Idempotency key</dt>
+          <dd>
+            <code>{result.idempotencyKey}</code>
+          </dd>
+        </div>
+      </dl>
+    </section>
   )
 }

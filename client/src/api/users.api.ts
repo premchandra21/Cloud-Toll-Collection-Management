@@ -31,3 +31,11 @@ export async function setUserPlazas(id: string, plazaIds: string[]): Promise<Adm
   const res = await api.put<ApiSuccess<{ user: AdminUser }>>(`/users/${id}/plazas`, { plazaIds })
   return res.data.data.user
 }
+
+export async function setUserCredit(
+  id: string,
+  limits: { creditLimit: string; monthlyCreditLimit: string },
+): Promise<AdminUser> {
+  const res = await api.put<ApiSuccess<{ user: AdminUser }>>(`/users/${id}/credit`, limits)
+  return res.data.data.user
+}

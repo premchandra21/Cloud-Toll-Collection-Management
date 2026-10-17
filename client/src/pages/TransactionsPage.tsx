@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { downloadTransactionsCsv } from '../api/transactions.api'
+import CreditBadge from '../components/ui/CreditBadge'
 import Pagination from '../components/ui/Pagination'
 import { useAuth } from '../features/auth/useAuth'
 import PlazaFilter from '../features/transactions/PlazaFilter'
@@ -10,6 +11,7 @@ import type { TollStatus, TransactionFilters } from '../types/transaction'
 import { VEHICLE_TYPE_LABELS } from '../types/vehicle'
 import type { VehicleType } from '../types/vehicle'
 import { endOfDayIso, startOfDayIso } from '../utils/dateRange'
+import { failureLabel } from '../utils/failureReasons'
 import { formatDateTime, formatMoney } from '../utils/format'
 import { getErrorMessage } from '../utils/getErrorMessage'
 import { transactionsPath } from '../utils/transactionPaths'
@@ -17,7 +19,7 @@ import { transactionsPath } from '../utils/transactionPaths'
 interface Draft {
   q: string
   status: '' | TollStatus
-  plazaId: string
+  plazaId: string 
   vehicleType: '' | VehicleType
   fromDate: string
   toDate: string
@@ -195,9 +197,16 @@ export default function TransactionsPage() {
                         {t.plaza.name} <span className="badge">{t.plaza.code}</span>
                       </td>
                       <td>
-                        <span className={`status status--${t.status === 'SUCCESS' ? 'ok' : 'fail'}`}>
-                          {t.status === 'SUCCESS' ? 'Success' : 'Failed'}
-                        </span>
+                        {t.credit ? (
+                          <CreditBadge credit={t.credit} />
+                        ) : (
+                          <span className={`status status--${t.status === 'SUCCESS' ? 'ok' : 'fail'}`}>
+                            {t.status === 'SUCCESS' ? 'Success' : 'Failed'}
+                          </span>
+                        )}
+                        {t.status === 'FAILED' && (
+                          <div className="muted note">{failureLabel(t.failureReason)}</div>
+                        )}
                       </td>
                       <td className="num">{formatMoney(t.amount)}</td>
                       <td className="table__actions">

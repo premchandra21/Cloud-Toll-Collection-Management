@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import Pagination from '../../components/ui/Pagination'
+import CreditLimitsEditor from '../../features/admin/CreditLimitsEditor'
 import OperatorPlazasEditor from '../../features/admin/OperatorPlazasEditor'
 import { useAuth } from '../../features/auth/useAuth'
 import { useAdminUsers, useSetUserActive } from '../../hooks/useAdminUsers'
 import type { Role } from '../../types/auth'
 import { formatDateTime, formatMoney } from '../../utils/format'
 import { getErrorMessage } from '../../utils/getErrorMessage'
+import { toCents } from '../../utils/money'
 
 export default function UsersPage() {
   const { user: me } = useAuth()
@@ -16,6 +18,7 @@ export default function UsersPage() {
   const [page, setPage] = useState(1)
   const [actionError, setActionError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [creditId, setCreditId] = useState<string | null>(null)
 
   const list = useAdminUsers({
     page,
@@ -33,6 +36,7 @@ export default function UsersPage() {
 
   // Look the operator up in the current page so the editor always starts from fresh data.
   const editing = list.data?.items.find((u) => u.id === editingId) ?? null
+  const creditDriver = list.data?.items.find((u) => u.id === creditId) ?? null
 
   const toggle = async (id: string, isActive: boolean) => {
     setActionError(null)
@@ -86,6 +90,14 @@ export default function UsersPage() {
         />
       )}
 
+      {creditDriver && (
+        <CreditLimitsEditor
+          key={creditDriver.id}
+          driver={creditDriver}
+          onClose={() => setCreditId(null)}
+        />
+      )}
+
       <section className="card section-gap">
         {list.isPending && <p className="muted">Loading users...</p>}
         {list.isError && <div className="alert alert--error">{getErrorMessage(list.error)}</div>}
@@ -102,6 +114,7 @@ export default function UsersPage() {
                     <th>Plazas</th>
                     <th className="num">Vehicles</th>
                     <th className="num">Wallet</th>
+                    <th>Pay later</th>
                     <th>Joined</th>
                     <th>Status</th>
                     <th />
@@ -141,6 +154,31 @@ export default function UsersPage() {
                         </td>
                         <td className="num">{u.role === 'USER' ? u.vehicleCount : '-'}</td>
                         <td className="num">{u.walletBalance ? formatMoney(u.walletBalance) : '-'}</td>
+                        <td>
+                          {u.credit ? (
+                            <>
+                              {u.credit.enabled ? (
+                                <>
+                                  <strong>{formatMoney(u.credit.limit)}</strong>
+                                  <div className="muted note">
+                                    {formatMoney(u.credit.monthlyLimit)} / month
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="status status--off">Off</span>
+                              )}
+                              {toCents(u.credit.outstanding) > 0 && (
+                                <div className="note">
+                                  <span className="status status--credit">
+                                    Owes {formatMoney(u.credit.outstanding)}
+                                  </span>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
                         <td>{formatDateTime(u.createdAt)}</td>
                         <td>
                           <span className={`status status--${u.isActive ? 'ok' : 'off'}`}>
@@ -148,6 +186,15 @@ export default function UsersPage() {
                           </span>
                         </td>
                         <td className="table__actions">
+                          {u.role === 'USER' && u.credit && (
+                            <button
+                              type="button"
+                              className="btn btn--small btn--ghost"
+                              onClick={() => setCreditId(u.id)}
+                            >
+                              Pay later
+                            </button>
+                          )}
                           {u.role === 'OPERATOR' && (
                             <button
                               type="button"
