@@ -210,12 +210,108 @@ progress.md             Build log and decisions
 | Browser shows a CORS or network error | The API must be running, `CLIENT_ORIGIN` must equal the frontend address, and `VITE_API_URL` must be correct. Restart both after editing `.env` files |
 | Port 4000 or 5173 already in use | Stop the other process, or change `PORT` and update `VITE_API_URL` |
 
-## Deployment (not done yet)
-
-The app is designed to be deployed as a static frontend, a stateless API and a managed PostgreSQL
-database. For managed databases, use the pooled connection string as `DATABASE_URL` and the direct one as
-`DIRECT_URL` (used only for migrations). Run `npm run migrate:deploy` and `npm run seed` once against the
-cloud database. Free hosting plans may put the API to sleep when idle, so open `/api/v1/health` before a demo.
+## Deployment (cloud)
+ 
+The system is deployed as a three-tier cloud architecture, entirely on free tiers:
+ 
+| Tier | Platform | Cloud model | Role |
+|---|---|---|---|
+| Frontend (`client/`) | **Vercel** | Static hosting + global CDN | Serves the React app |
+| Backend (`server/`) | **Render** (Web Service) | PaaS | Runs the stateless Express API |
+| Database | **Neon** | Managed PostgreSQL (DBaaS) | Stores users, wallets, tolls and the audit ledger |
+ 
+```text
+Browser  -->  Vercel (React, CDN)  -->  Render (Express API)  -->  Neon (PostgreSQL)
+                                          HTTPS + JWT              pooled connection (SSL)
+```
+ 
+**Live links** (replace with your own after deploying):
+ 
+- Frontend: `https://cloud-toll-collection-management.vercel.app/`
+- API health check: `https://cloud-toll-collection-management.onrender.com/api/v1/health`
+The API is stateless (all state is in the database, authentication uses JWT), so it can be restarted
+or scaled without losing data.
+ 
+### Step 1: Database (Neon)
+ 
+1. Sign up at <https://neon.tech> and click **Create project** (name it `toll-db`, choose the nearest region).
+2. Open **Connect** on the dashboard and copy two connection strings:
+   - **Connection pooling ON** (host contains `-pooler`) is the `DATABASE_URL`.
+   - **Connection pooling OFF** is the `DIRECT_URL`, used only for migrations.
+   Both must end with `?sslmode=require` and use the same password. Copy only the `postgresql://...` part.
+3. From your computer, put both in `server/.env` and run the migrations and seed once:
+```bash
+   cd server
+   npm install
+   npm run build            # generate the Prisma client
+   npm run migrate:deploy   # create tables and constraints (uses DIRECT_URL)
+   npm run seed             # load demo users, plazas, rates, vehicles, wallets
+```
+4. Check that the tables and demo data appear under **Tables** in the Neon console.
+### Step 2: Backend (Render)
+ 
+1. Sign up at <https://render.com> and click **New > Web Service**, then connect the GitHub repository.
+2. Use these settings:
+   | Setting | Value |
+   |---|---|
+   | Root Directory | `server` |
+   | Runtime | Node |
+   | Build Command | `npm install && npm run build` |
+   | Start Command | `npm start` |
+   | Instance Type | Free |
+   | Health Check Path | `/api/v1/health` |
+3. Add these environment variables:
+   | Key | Value |
+   |---|---|
+   | `DATABASE_URL` | the pooled Neon connection string |
+   | `JWT_SECRET` | a long random string (32+ characters) |
+   | `NODE_VERSION` | `22` |
+   | `CLIENT_ORIGIN` | the frontend URL, for example `https://cloud-toll-collection-management.vercel.app` (no trailing slash) |
+   | `LOW_BALANCE_THRESHOLD`, `CREDIT_DUE_DAYS`, `CREDIT_TIMEZONE` | optional, defaults are used if omitted |
+4. Deploy, then open `https://cloud-toll-collection-management.onrender.com/api/v1/health`. It should show `"db": "connected"`.
+### Step 3: Frontend (Vercel)
+ 
+1. Sign up at <https://vercel.com> and click **Add New > Project**, then import the repository.
+2. Set **Root Directory** to `client`. The Vite preset is detected, and `client/vercel.json` already
+   rewrites all routes to `index.html` so page refreshes work.
+3. Add the environment variable `VITE_API_URL` = `https://cloud-toll-collection-management.onrender.com/api/v1`
+   (include `/api/v1`, no trailing slash).
+4. Deploy and copy the production URL.
+5. If the site asks visitors to log in to Vercel, open **Settings > Deployment Protection** and turn
+   **Vercel Authentication** off so the site is public.
+### Step 4: Connect the pieces
+ 
+Go back to Render and set `CLIENT_ORIGIN` to the final Vercel URL, then let the service redeploy.
+A wrong `CLIENT_ORIGIN` is the most common cause of CORS errors. If you change `VITE_API_URL`, redeploy
+the frontend, because Vite reads it at build time.
+ 
+### Verify the deployment
+ 
+1. Open the health URL and confirm `"db": "connected"`.
+2. Open the frontend and log in with the demo accounts above.
+3. Run the evidence scripts against the live API from `server/`:
+```bash
+   npm run evidence:concurrency -- --api=https://<your-api>.onrender.com/api/v1
+   npm run evidence:reconcile   -- --api=https://<your-api>.onrender.com/api/v1
+```
+ 
+### Deployment notes
+ 
+- **Cold starts:** Render's free tier sleeps after about 15 minutes of inactivity, and the first request can take
+  30 to 60 seconds. Open the health URL a few minutes before a demo, or use a free uptime monitor such as UptimeRobot.
+- **Free-tier limits** change over time, so check each provider's current plan before relying on them.
+- **Migrations** are not run automatically on deploy. Run `npm run migrate:deploy` against Neon whenever the schema changes.
+- **Environment variables** are set in each provider's dashboard. Never commit `.env` files.
+### Deployment troubleshooting
+ 
+| Problem | Fix |
+|---|---|
+| `Authentication failed ... credentials are not valid` (P1000) | The password in `DATABASE_URL` is wrong or outdated. Copy the Neon strings again, with no `psql '` prefix, no placeholders and no stray quotes |
+| Browser shows a CORS error | `CLIENT_ORIGIN` on Render must exactly equal the frontend URL (no trailing slash). Save and let it redeploy |
+| Frontend loads but API calls fail | Check `VITE_API_URL` on Vercel (it must end in `/api/v1`) and redeploy the frontend |
+| First request is very slow | The free Render service is waking up. Wait about a minute, or open the health URL first |
+| Vercel site asks for a login | Turn off Vercel Authentication under Deployment Protection |
+| Refreshing an inner page gives 404 | Make sure `client/vercel.json` is committed |
 
 ## Security notes
 
